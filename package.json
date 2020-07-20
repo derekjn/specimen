@@ -1,0 +1,13 @@
+{
+  "name": "specimen",
+  "version": "0.0.0",
+  "dependencies": {
+    "animejs": "^3.2.0",
+    "graphlib": "^2.1.8",
+    "jquery": "^3.5.1"
+  },
+  "devDependencies": {
+    "rollup": "^2.22.1",
+    "@rollup/plugin-node-resolve": "^8.4.0"
+  }
+}

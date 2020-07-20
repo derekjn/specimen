@@ -1,0 +1,41 @@
+.system {
+    display: block;
+    margin: auto;
+}
+
+.pq {
+    stroke: #b5b5b5;
+    stroke-width: 1;
+    fill: none;
+}
+
+.pq-connector {
+    stroke: #b5b5b5;
+    stroke-dasharray: 4;
+}
+
+.coll-connector {
+    stroke: #b5b5b5;
+}
+
+.row {
+    fill: #6b84ff;
+}
+
+.row-transformed {
+    fill: #a96bff;
+}
+
+.row.discard {
+    fill: #ff9c6b;
+}
+
+.partition {
+    stroke: #000000;
+    stroke-width: 1;
+    fill: none;
+}
+
+.code {
+    font-family: monospace;
+}

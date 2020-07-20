@@ -1,0 +1,19 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="../../css/theme.css">
+
+  </head>
+
+  <body>
+    <div class="animation-container-1">
+      <h1>A basic topology</h1>
+      <pre style="text-align: center;">CREATE STREAM s2 AS SELECT a, b FROM s1 WHERE b = 42 EMIT CHANGES;</pre>
+    </div>
+
+    <script src="../../build/bundle.js"></script>
+    <script src="basic-topology.js"></script>
+  </body>
+</html>
