@@ -1,3 +1,5 @@
+import $ from 'jquery';
+
 export function build_controls_data(styles) {
   return {
     start: 0,

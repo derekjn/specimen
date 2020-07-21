@@ -1,3 +1,22 @@
+import * as graphlib from 'graphlib';
+import $ from 'jquery';
+import {
+  uuidv4,
+  inverse_map,
+  index_by_name,
+  index_by,
+  cycle_array,
+  select_keys,
+  relative_add,
+} from './util';
+import { build_collection_data, render_collection } from './components/collection';
+import { build_persistent_query_data } from './components/persistent-query';
+import { vertically_center_layout } from "./vertical";
+import { build_controls_data, render_controls } from './components/controls';
+import { build_svg_data, render_svg } from './components/svg';
+
+import { styles } from './styles';
+
 function build_data(node, styles, computed) {
   switch(node.kind) {
   case "collection":
@@ -135,7 +154,8 @@ Specimen.prototype.render = function(layout, container, styles) {
   const svg_data = build_svg_data(styles);
   render_svg(container, svg_data);
 
-  layout.forEach(data => render(data));
+  console.log(layout);
+  layout.forEach(data => render_collection(data));
 
   // Repaint.
   $(container).html($(container).html());

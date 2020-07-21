@@ -1,3 +1,6 @@
+import $ from 'jquery';
+import { build_rows_data } from './row';
+
 export function build_partition_data(coll, rows, styles, computed) {
   const { svg_width } = styles;
   const { part_bracket_len, part_width, part_height, part_id_margin_top, part_id_margin_left } = styles;
@@ -72,4 +75,14 @@ export function render_partition(data) {
 `;
 
   $("." + container).append(html);
+}
+
+function render_rows(data) {
+  let row_html = "";
+  for (const row of data) {
+    const { width, height, x, y } = row;
+    row_html += `<rect width="${width}" height="${height}" x="${x}" y="${y}" class="row"></rect>`;
+  }
+
+  return row_html;
 }

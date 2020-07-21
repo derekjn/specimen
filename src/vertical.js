@@ -95,7 +95,7 @@ function translate_y(data, height) {
   }
 }
 
-function vertically_center_layout(layout_data) {
+export function vertically_center_layout(layout_data) {
   const heights = layout_data.map(components => {
     if (components.length == 1) {
       let data = components[0];
