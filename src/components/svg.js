@@ -1,3 +1,5 @@
+import $ from 'jquery';
+
 export function build_svg_data(styles) {
   const { svg_width, svg_height, svg_target } = styles;
 

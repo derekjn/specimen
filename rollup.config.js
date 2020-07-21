@@ -1,15 +1,23 @@
 import { nodeResolve } from "@rollup/plugin-node-resolve";
+import commonjs from 'rollup-plugin-commonjs';
 
-export default {
-  input: "src/main.js",
+const plugins = [
+  nodeResolve(),
+  commonjs({
+    include: 'node_modules/**',
+  }),
+];
+
+const watch = {
+  clearScreen: false,
+};
+
+export default [{
+  input: "./examples/basic-topology/src/index.js",
   output: {
-    file: "./build/bundle.js",
+    file: "./examples/basic-topology/bundle.js",
     format: "iife"
   },
-  plugins: [
-    nodeResolve()
-  ],
-  watch: {
-    clearScreen: false
-  }
-}
+  plugins,
+  watch,
+}];

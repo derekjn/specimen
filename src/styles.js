@@ -1,4 +1,4 @@
-const styles = {
+export const styles = {
   svg_target: "system",
   svg_width: 800,
   svg_height: 500,

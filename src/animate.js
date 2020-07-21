@@ -1,4 +1,7 @@
-function build_dynamic_elements_data(layout_index, actions, styles) {
+import { build_dynamic_container_data, build_dynamic_row_data } from './components/row';
+import { relative_add } from './util';
+
+export function build_dynamic_elements_data(layout_index, actions, styles) {
   return actions.reduce((all, action) => {
     const { from, old_row } = action;
 
@@ -14,7 +17,7 @@ function build_dynamic_elements_data(layout_index, actions, styles) {
   }, {});
 }
 
-function animation_sequence(layout_index, dynamic_elements, actions, styles) {
+export function animation_sequence(layout_index, dynamic_elements, actions, styles) {
   const { row_width, row_margin_left, row_offset_right } = styles;
 
   let seq = [];
@@ -75,7 +78,7 @@ function animation_sequence(layout_index, dynamic_elements, actions, styles) {
   return seq;
 }
 
-function anime_commands(seq, lineage) {
+export function anime_commands(seq, lineage) {
   const ms_px = 3;
   let commands = [];
   let history = {};

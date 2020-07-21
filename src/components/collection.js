@@ -1,3 +1,6 @@
+import $ from 'jquery';
+import { build_partition_data, render_partition } from './partition';
+
 export function build_collection_data(config, styles, computed) {
   const { name, partitions } = config;
   const { svg_target } = styles;
@@ -71,4 +74,54 @@ export function render_collection(data) {
   for (const partition of data.partitions) {
     render_partition(partition);
   }
+}
+
+function build_coll_label_data(coll, styles, computed) {
+  const { svg_width } = styles;
+  const { coll_tip_len, coll_foot_len, coll_tip_margin_top } = styles;
+  const { part_width, part_height } = styles;
+  const { top_y, midpoint_x, container } = computed;
+
+  const left_x = midpoint_x - (part_width / 2);
+  const right_x = midpoint_x + (part_width / 2);
+
+  const coll_tip_top_y = top_y + coll_tip_margin_top;
+  const coll_tip_bottom_y = coll_tip_top_y + coll_tip_len;
+  const coll_foot_bottom_y = coll_tip_bottom_y + coll_foot_len;
+
+  return {
+    bottom_y: coll_foot_bottom_y,
+    coll_label_data : {
+      container: container,
+      label: {
+        coll: coll,
+        x: midpoint_x,
+        y: top_y
+      },
+      tip: {
+        x1: midpoint_x,
+        y1: coll_tip_top_y,
+        x2: midpoint_x,
+        y2: coll_tip_bottom_y
+      },
+      bar: {
+        x1: left_x,
+        y1: coll_tip_bottom_y,
+        x2: right_x,
+        y2: coll_tip_bottom_y
+      },
+      left_foot: {
+        x1: left_x,
+        y1: coll_tip_bottom_y,
+        x2: left_x,
+        y2: coll_foot_bottom_y
+      },
+      right_foot: {
+        x1: right_x,
+        y1: coll_tip_bottom_y,
+        x2: right_x,
+        y2: coll_foot_bottom_y
+      }
+    }
+  };
 }
