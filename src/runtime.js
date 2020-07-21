@@ -1,3 +1,5 @@
+import { select_keys, uuidv4, cycle_array } from './util';
+
 function choose_lowest_timestamp(collections) {
   let choices = []
 
@@ -59,7 +61,7 @@ function initialize_offsets(colls) {
   }, {});
 }
 
-function run_until_drained(specimen) {
+export function run_until_drained(specimen) {
   const kinds = specimen.node_kinds();
   const colls = kinds.collection;
   const pqs = kinds.persistent_query;

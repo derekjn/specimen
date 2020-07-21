@@ -1,5 +1,6 @@
 import * as graphlib from 'graphlib';
 import $ from 'jquery';
+import anime from 'animejs/lib/anime.es.js';
 import {
   uuidv4,
   inverse_map,
@@ -14,6 +15,10 @@ import { build_persistent_query_data } from './components/persistent-query';
 import { vertically_center_layout } from "./vertical";
 import { build_controls_data, render_controls } from './components/controls';
 import { build_svg_data, render_svg } from './components/svg';
+import { render_persistent_query } from './components/persistent-query';
+import { build_dynamic_container_data } from './components/row';
+import { run_until_drained } from './runtime';
+import { build_dynamic_elements_data, animation_sequence, anime_commands } from './animate';
 
 import { styles } from './styles';
 
@@ -146,6 +151,33 @@ Specimen.prototype.horizontal_layout = function(styles) {
   return vertically_center_layout(layout).flatMap(xs => xs);
 }
 
+function render(data) {
+  switch(data.kind) {
+  case "collection":
+    render_collection(data);
+    break;
+  case "persistent_query":
+    render_persistent_query(data);
+    break;
+  }
+}
+
+function render_dynamic_container(data) {
+  const { container, dynamic_target } = data;
+
+  const html = `<g class="${dynamic_target}"></g>`;
+  $("." + container).append(html);
+}
+
+function render_dynamic_row(data) {
+  const { container, width, height, x, y } = data;
+  const { id, collection, partition, offset } = data;
+
+  const html = `<rect width="${width}" height="${height}" x="${x}" y="${y}" class="row id-${id} collection-${collection} partition-${partition} offset-${offset}"></rect>`;
+
+  $("." + container).append(html);  
+}
+
 Specimen.prototype.render = function(layout, container, styles) {
   const controls_data = build_controls_data(styles);
   render_controls(container, controls_data);
@@ -154,8 +186,7 @@ Specimen.prototype.render = function(layout, container, styles) {
   const svg_data = build_svg_data(styles);
   render_svg(container, svg_data);
 
-  console.log(layout);
-  layout.forEach(data => render_collection(data));
+  layout.forEach(data => render(data));
 
   // Repaint.
   $(container).html($(container).html());

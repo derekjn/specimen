@@ -1,3 +1,5 @@
+import $ from 'jquery';
+
 export function build_persistent_query_data(config, styles, computed) {
   const { name } = config;
   const { svg_target } = styles;
