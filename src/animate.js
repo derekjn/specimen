@@ -92,7 +92,8 @@ export function anime_commands(seq, lineage) {
     const exiting_motion = (Math.abs(animation[2].translateX) + Math.abs(animation[2].translateY)) * ms_px;
     const settling_motion = (animation[3].translateX) * ms_px;
     const pq_t = (t[processed_by] || 0);
-    const t_offset = (history[lineage[id]] || 0) + pq_t;
+    const row_history = (history[lineage[id]] || 0);
+    const t_offset = ((row_history >= pq_t) ? row_history : pq_t);
 
     commands.push({
       params: {
@@ -127,10 +128,7 @@ export function anime_commands(seq, lineage) {
       t: t_offset
     });
 
-    if (!history[lineage[id]]) {
-      t[processed_by] = pq_t + intro + entering_motion;
-    }
-
+    t[processed_by] = (t_offset + intro + entering_motion);
     history[id] = t_offset + intro + entering_motion + crossing_motion + exiting_motion + settling_motion;
   });
 
