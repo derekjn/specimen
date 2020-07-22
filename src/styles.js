@@ -1,7 +1,7 @@
 export const styles = {
   svg_target: "system",
-  svg_width: 800,
-  svg_height: 500,
+  svg_width: 1200,
+  svg_height: 700,
 
   dynamic_target: "dynamic-elements",
 

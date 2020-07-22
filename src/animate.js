@@ -23,7 +23,7 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
   let seq = [];
 
   actions.forEach(action => {
-    const { old_row, new_row } = action;
+    const { old_row, new_row, processed_by } = action;
     const target = `.id-${old_row.id}`;
 
     const old_row_position = dynamic_elements[old_row.id];
@@ -52,6 +52,7 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
 
     seq.push({
       id: old_row.id,
+      processed_by: processed_by,
       animation: [
         {
           target: target,
@@ -82,15 +83,16 @@ export function anime_commands(seq, lineage) {
   const ms_px = 3;
   let commands = [];
   let history = {};
-  let t = 0;
+  let t = {};
 
-  seq.forEach(({ id, animation }) => {
+  seq.forEach(({ id, processed_by, animation }) => {
     const intro = 250;
     const entering_motion = (Math.abs(animation[0].translateX) + Math.abs(animation[0].translateY)) * ms_px;
     const crossing_motion = (animation[1].translateX) * ms_px;
     const exiting_motion = (Math.abs(animation[2].translateX) + Math.abs(animation[2].translateY)) * ms_px;
     const settling_motion = (animation[3].translateX) * ms_px;
-    const t_offset = history[lineage[id]] || t;
+    const pq_t = (t[processed_by] || 0);
+    const t_offset = (history[lineage[id]] || 0) + pq_t;
 
     commands.push({
       params: {
@@ -126,7 +128,7 @@ export function anime_commands(seq, lineage) {
     });
 
     if (!history[lineage[id]]) {
-      t += intro + entering_motion;
+      t[processed_by] = pq_t + intro + entering_motion;
     }
 
     history[id] = t_offset + intro + entering_motion + crossing_motion + exiting_motion + settling_motion;

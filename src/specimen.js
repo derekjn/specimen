@@ -2,7 +2,6 @@ import * as graphlib from 'graphlib';
 import $ from 'jquery';
 import anime from 'animejs/lib/anime.es.js';
 import {
-  uuidv4,
   inverse_map,
   index_by_name,
   index_by,
@@ -37,7 +36,6 @@ function add_metadata(component) {
   case "collection":
     Object.entries(component.partitions).forEach(([id, partition]) => {
       partition.forEach((row, i) => {
-        row.id = uuidv4();
         row.collection = component.name;
         row.partition = id;
         row.offset = i;

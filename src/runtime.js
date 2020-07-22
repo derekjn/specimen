@@ -1,13 +1,15 @@
 import { select_keys, uuidv4, cycle_array } from './util';
 
-function choose_lowest_timestamp(collections) {
+function choose_lowest_timestamp(collections, offsets) {
   let choices = []
 
   Object.entries(collections).forEach(([name, { partitions }]) => {
     Object.entries(partitions).forEach(([id, partition]) => {
-      if (partition.length > 0) {
+      const offset = offsets[name][id];
+
+      if (partition[offset] != undefined) {
         const props = { collection: name, partition: id };
-        choices.push({ ...partition[0], ...props });
+        choices.push({ ...partition[offset], ...props });
       }
     });
   });
@@ -26,38 +28,47 @@ function choose_lowest_timestamp(collections) {
 function without_sinks(colls, sinks) {
   return Object.entries(colls).reduce((all, [name, coll]) => {
     if (!sinks.includes(coll.name)) {
-      all.push(coll);
+      all[name] = coll;
     }
 
     return all;
-  }, []);
+  }, {});
 }
 
-function is_drained(non_sinks) {
-  return non_sinks.every(coll => {
-    return Object.entries(coll.partitions).every(([partition, rows]) => {
-      return rows.length == 0;
+function is_drained(non_sinks, offsets) {
+  return Object.entries(offsets).every(([pq, colls]) => {
+    return Object.entries(colls).every(([coll, partitions]) => {
+      return Object.entries(partitions).every(([partition, offset]) => {
+        return offset == non_sinks[coll].partitions[partition].length;
+      });
     });
   });
 }
 
-function swap_partitions(colls, offsets, old_row, new_row) {
-  colls[old_row.collection].partitions[old_row.partition].shift();
-
-  new_row.offset = offsets[new_row.collection][new_row.partition];
-  offsets[new_row.collection][new_row.partition]++;
-  
+function swap_partitions(pq, colls, offsets, old_row, new_row) {
+  new_row.offset = colls[new_row.collection].partitions[new_row.partition].length;
   colls[new_row.collection].partitions[new_row.partition].push(new_row);
+  offsets[pq][old_row.collection][old_row.partition]++;
 }
 
-function initialize_offsets(colls) {
-  return Object.entries(colls).reduce((all, [name, { partitions }]) => {    
-    all[name] = {};
-    Object.entries(partitions).forEach(([partition, rows]) => {
-      all[name][partition] = rows.length;
-    });
+function initialize_offsets(specimen, pqs, colls) {
+  return pqs.reduce((all_pqs, pq) => {
+    const parent_colls = specimen.parents(pq);
 
-    return all;
+    const coll_offsets = parent_colls.reduce((all_colls, parent) => {
+      const partitions = Object.keys(colls[parent].partitions);
+
+      const partition_offsets = partitions.reduce((all_partitions, partition) => {
+        all_partitions[partition] = 0;
+        return all_partitions;
+      }, {});
+
+      all_colls[parent] = partition_offsets;
+      return all_colls;
+    }, {});
+
+    all_pqs[pq] = coll_offsets;
+    return all_pqs;
   }, {});
 }
 
@@ -71,21 +82,22 @@ export function run_until_drained(specimen) {
   let pq_seq = Object.keys(pqs);
   let actions = [];
   let lineage = {};
-  let offsets = initialize_offsets(colls);
+  let offsets = initialize_offsets(specimen, pq_seq, colls);
 
-  while (!is_drained(non_sinks)) {
+  while (!is_drained(non_sinks, offsets)) {
     const pq = pq_seq[0];
     const parents = specimen.parents(pq);
     const parent_colls = select_keys(colls, parents);
-    const old_row = choose_lowest_timestamp(parent_colls);
+    const old_row = choose_lowest_timestamp(parent_colls, offsets[pq]);
 
     if (old_row) {
       const { fn } = pqs[pq];
       const new_row = fn(old_row);
-      new_row.id = uuidv4();
+      old_row.id = uuidv4();
+      new_row.derived_id = old_row.id;
 
-      swap_partitions(colls, offsets, old_row, new_row);
-      lineage[new_row.id] = old_row.id;
+      swap_partitions(pq, colls, offsets, old_row, new_row);
+      lineage[old_row.id] = old_row.derived_id;
 
       const action = {
         from: old_row.collection,
