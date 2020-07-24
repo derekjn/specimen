@@ -16,6 +16,7 @@ import { build_controls_data, render_controls } from './components/controls';
 import { build_svg_data, render_svg } from './components/svg';
 import { render_persistent_query } from './components/persistent-query';
 import { build_dynamic_container_data } from './components/row';
+import { build_consumer_markers_data, render_consumer_marker } from './components/consumer-marker';
 import { run_until_drained } from './runtime';
 import { build_dynamic_elements_data, animation_sequence, anime_commands } from './animate';
 
@@ -92,6 +93,10 @@ Specimen.prototype.sink_collections = function() {
 
 Specimen.prototype.parents = function(name) {
   return this._graph.predecessors(name);
+}
+
+Specimen.prototype.children = function(name) {
+  return this._graph.successors(name);
 }
 
 Specimen.prototype.layout_buckets = function() {
@@ -190,15 +195,43 @@ Specimen.prototype.render = function(layout, container, styles) {
   $(container).html($(container).html());
 }
 
+Specimen.prototype.consumer_graph = function() {
+  const kinds = this.node_kinds();
+  const pqs = Object.keys(kinds.persistent_query);
+
+  return Object.entries(kinds.collection).reduce((all, [name, { partitions }]) => {
+    const children = this.children(name);
+    const child_pqs = children.filter(child => pqs.includes(child));
+
+    all[name] = Object.keys(partitions).reduce((parts, part) => {
+      parts[part] = child_pqs;
+      return parts;
+    }, {});
+
+    return all;
+  }, {});
+}
+
 Specimen.prototype.animate = function(layout, container, styles) {
   const layout_index = index_by_name(layout);
+  const consumer_graph = this.consumer_graph();
   const { actions, lineage } = run_until_drained(this);
 
   const dynamic_container_data = build_dynamic_container_data(styles);
   const dynamic_data = build_dynamic_elements_data(layout_index, actions, styles);
+  const consumer_markers = build_consumer_markers_data(layout_index, consumer_graph, styles);
 
   render_dynamic_container(dynamic_container_data);
   Object.values(dynamic_data).forEach(data => render_dynamic_row(data));
+
+  Object.entries(consumer_markers).forEach(([coll, partitions]) => {
+    Object.entries(partitions).forEach(([partition, pqs]) => {
+      Object.entries(pqs).forEach(([pq, data]) => {
+        render_consumer_marker(data);
+      });
+    });
+  });
+
   $(container).html($(container).html());
 
   const animations = animation_sequence(layout_index, dynamic_data, actions, styles);
@@ -217,6 +250,7 @@ Specimen.prototype.animate = function(layout, container, styles) {
   $(container + " > .controls > .restart").click(timeline.restart);
 
   controlsProgressEl.on('input', function() {
+    timeline.pause();
     timeline.seek(timeline.duration * (controlsProgressEl.val() / 100));
   });
 

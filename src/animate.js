@@ -18,7 +18,7 @@ export function build_dynamic_elements_data(layout_index, actions, styles) {
 }
 
 export function animation_sequence(layout_index, dynamic_elements, actions, styles) {
-  const { row_width, row_margin_left, row_offset_right } = styles;
+  const { row_width, row_height, row_margin_left, row_offset_right } = styles;
 
   let seq = [];
 
@@ -39,7 +39,7 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
     const pq_exit_y = pq_enter_y;
 
     const new_part_x = layout_index[new_row.collection].partitions[new_row.partition].brackets.bl.x;
-    const new_part_y = layout_index[new_row.collection].partitions[new_row.partition].midpoint_y;
+    const new_part_y = layout_index[new_row.collection].partitions[new_row.partition].midpoint_y - (row_height / 2);
 
     const new_part_start_x = layout_index[new_row.collection].partitions[new_row.partition].brackets.tr.x;
     const new_part_margin = ((new_row.offset - 1) * row_margin_left);
@@ -134,3 +134,7 @@ export function anime_commands(seq, lineage) {
 
   return commands;
 }
+
+// 1: refactor layout_index to also include dynamic elements.
+// 2: Make the statically drawn rows findable from the index by UUID (no special lookup case in animation)
+// 3: Only draw consumer markers in when a row lands in the partition

@@ -42,6 +42,15 @@ s.add_child(["s1"], {
   }
 });
 
+s.add_child(["s1"], {
+  name: "pq2",
+  kind: "persistent_query",
+  fn: function(row) {
+    return { ...row, ...{ collection: "s3" } };
+  }
+});
+
+
 s.add_child(["pq1"], {
   name: "s2",
   kind: "collection",
@@ -52,15 +61,6 @@ s.add_child(["pq1"], {
     3: []
   }
 });
-
-s.add_child(["s2"], {
-  name: "pq2",
-  kind: "persistent_query",
-  fn: function(row) {
-    return { ...row, ...{ collection: "s3" } };
-  }
-});
-
 
 s.add_child(["pq2"], {
   name: "s3",
@@ -73,7 +73,29 @@ s.add_child(["pq2"], {
   }
 });
 
+
+// s.add_child(["s2"], {
+//   name: "pq2",
+//   kind: "persistent_query",
+//   fn: function(row) {
+//     return { ...row, ...{ collection: "s3" } };
+//   }
+// });
+
+
+// s.add_child(["pq2"], {
+//   name: "s3",
+//   kind: "collection",
+//   partitions: {
+//     0: [],
+//     1: [],
+//     2: [],
+//     3: []
+//   }
+// });
+
 const container = ".animation-container-1";
-const layout = s.horizontal_layout(styles);
-s.render(layout, container, styles);
-s.animate(layout, container, styles);
+const my_styles = { ...styles, ...{ svg_width: 800 } };
+const layout = s.horizontal_layout(my_styles);
+s.render(layout, container, my_styles);
+s.animate(layout, container, my_styles);
