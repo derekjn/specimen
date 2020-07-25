@@ -45,3 +45,7 @@ export function select_keys(m, keys) {
 export function relative_add(x) {
   return "+=" + x;
 }
+
+export function relative_sub(x) {
+  return "-=" + x;
+}

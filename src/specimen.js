@@ -2,6 +2,7 @@ import * as graphlib from 'graphlib';
 import $ from 'jquery';
 import anime from 'animejs/lib/anime.es.js';
 import {
+  uuidv4,
   inverse_map,
   index_by_name,
   index_by,
@@ -37,6 +38,7 @@ function add_metadata(component) {
   case "collection":
     Object.entries(component.partitions).forEach(([id, partition]) => {
       partition.forEach((row, i) => {
+        row.source_id = uuidv4();
         row.collection = component.name;
         row.partition = id;
         row.offset = i;
@@ -85,6 +87,10 @@ Specimen.prototype.node_kinds = function() {
 
     return all;
   }, {});
+}
+
+Specimen.prototype.source_collections = function() {
+  return this._graph.sources();
 }
 
 Specimen.prototype.sink_collections = function() {
@@ -212,9 +218,26 @@ Specimen.prototype.consumer_graph = function() {
   }, {});
 }
 
+Specimen.prototype.static_row_index = function(layout_index) {
+  const sources = this.source_collections();
+  let result = {};
+
+  sources.forEach(source => {
+    layout_index[source].partitions.forEach(partition => {
+      partition.rows.forEach(row => {
+        result[row.source_id] = row;
+      });
+    });
+  });
+
+  return result;
+}
+
 Specimen.prototype.animate = function(layout, container, styles) {
   const layout_index = index_by_name(layout);
   const consumer_graph = this.consumer_graph();
+  const static_row_index = this.static_row_index(layout_index);
+
   const { actions, lineage } = run_until_drained(this);
 
   const dynamic_container_data = build_dynamic_container_data(styles);
@@ -223,6 +246,14 @@ Specimen.prototype.animate = function(layout, container, styles) {
 
   render_dynamic_container(dynamic_container_data);
   Object.values(dynamic_data).forEach(data => render_dynamic_row(data));
+
+  const all_dynamic_data = { ...dynamic_data,
+                             ...static_row_index,
+                             ...{
+                               consumer_markers: consumer_markers
+                             }};
+
+  console.log(consumer_markers);
 
   Object.entries(consumer_markers).forEach(([coll, partitions]) => {
     Object.entries(partitions).forEach(([partition, pqs]) => {
@@ -234,7 +265,7 @@ Specimen.prototype.animate = function(layout, container, styles) {
 
   $(container).html($(container).html());
 
-  const animations = animation_sequence(layout_index, dynamic_data, actions, styles);
+  const animations = animation_sequence(layout_index, all_dynamic_data, actions, styles);
   const commands = anime_commands(animations, lineage);
 
   var controlsProgressEl = $(container + " > .controls > .progress");

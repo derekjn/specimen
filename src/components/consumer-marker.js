@@ -1,7 +1,7 @@
 import $ from 'jquery';
 
 function build_consumer_marker_data(consumer, styles, computed) {
-  const { name } = consumer;
+  const { name, collection, partition } = consumer;
 
   const { dynamic_target } = styles;
   const {
@@ -21,6 +21,8 @@ function build_consumer_marker_data(consumer, styles, computed) {
     data: {
       kind: "consumer_marker",
       name: name,
+      collection: collection,
+      partition: partition,
       container: dynamic_target,
       x: x,
       arrow_y: arrow_y,
@@ -33,11 +35,11 @@ function build_consumer_marker_data(consumer, styles, computed) {
 }
 
 export function render_consumer_marker(data) {
-  const { name } = data;
+  const { name, collection, partition } = data;
   const { container, x, arrow_y, text_y } = data;
 
   const html = `
-<g class="consumer-${name}">
+<g class="coll-${collection} partition-${partition} consumer-${name}">
     <text x="${x}" y="${text_y}" text-anchor="middle" class="code">${name}</text>
     <text x="${x}" y="${arrow_y}" class="code">↓</text>
 </g>
@@ -63,7 +65,9 @@ export function build_consumer_markers_data(layout_index, consumer_graph, styles
 
       pqs.forEach(pq => {
         const consumer = {
-          name: pq
+          name: pq,
+          collection: coll,
+          partition: partition
         };
 
         const computed = { left_x: left_x, top_y: top_y };

@@ -1,7 +1,7 @@
 export const styles = {
   svg_target: "system",
   svg_width: 1200,
-  svg_height: 1000,
+  svg_height: 500,
 
   dynamic_target: "dynamic-elements",
 
@@ -36,5 +36,6 @@ export const styles = {
   consumer_m_init_margin_left: 3,
   consumer_m_text_margin_bottom: 15,
   consumer_m_offset_bottom: 5,
-  consumer_m_margin_bottom: 10
+  consumer_m_margin_bottom: 10,
+  consumer_m_margin_right: 3
 };

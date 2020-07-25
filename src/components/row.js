@@ -1,4 +1,5 @@
 export function build_row_data(row, styles, computed) {
+  const { source_id } = row;
   const { row_width, row_height } = styles;
   const { part_height } = styles;
   const { right_x, top_y, row_x } = computed;
@@ -6,6 +7,8 @@ export function build_row_data(row, styles, computed) {
   const row_y = top_y + (part_height / 2) - (row_height / 2);
 
   return {
+    kind: "row",
+    source_id: source_id,
     width: row_width,
     height: row_height,
     x: row_x,
@@ -40,7 +43,7 @@ export function build_dynamic_container_data(styles) {
 }
 
 export function build_dynamic_row_data(row, styles, computed) {
-  const { id, collection, partition, offset } = row;
+  const { id, derived_id, collection, partition, offset } = row;
 
   const { dynamic_target } = styles;
   const { part_height } = styles;
@@ -60,6 +63,7 @@ export function build_dynamic_row_data(row, styles, computed) {
     x: row_x,
     y: row_y,
     id: id,
+    derived_id,
     collection: collection,
     partition: partition,
     offset: offset
