@@ -22,14 +22,6 @@ s.add_root({
       { value: 20, t: 2 },
       { value: 21, t: 4 },
       { value: 22, t: 6 }
-    ],
-    3: [
-      { value: 10, t: 1 },
-      { value: 11, t: 3 },
-      { value: 12, t: 4 },
-      { value: 13, t: 5 },
-      { value: 14, t: 5 },
-      { value: 15, t: 5 },
     ]
   }
 });
@@ -48,8 +40,7 @@ s.add_child(["pq1"], {
   partitions: {
     0: [],
     1: [],
-    2: [],
-    3: []
+    2: []
   }
 });
 
@@ -61,19 +52,18 @@ s.add_child(["s2"], {
   }
 });
 
-
 s.add_child(["pq2"], {
   name: "s3",
   kind: "collection",
   partitions: {
     0: [],
     1: [],
-    2: [],
-    3: []
+    2: []
   }
 });
 
 const container = ".animation-container-1";
-const layout = s.horizontal_layout(styles);
-s.render(layout, container, styles);
-s.animate(layout, container, styles);
+const my_styles = { ...styles, ...{ svg_width: 1200, svg_height: 1000 } };
+const layout = s.horizontal_layout(my_styles);
+s.render(layout, container, my_styles);
+s.animate(layout, container, my_styles);

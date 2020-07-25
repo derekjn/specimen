@@ -97,7 +97,12 @@ export function run_until_drained(specimen) {
       new_row.derived_id = old_row.id;
 
       swap_partitions(pq, colls, offsets, old_row, new_row);
-      lineage[old_row.id] = old_row.derived_id;
+
+      if (old_row.derived_id) {
+        lineage[old_row.id] = old_row.derived_id;
+      } else {
+        old_row.derived_id = old_row.source_id;
+      }
 
       const action = {
         from: old_row.collection,

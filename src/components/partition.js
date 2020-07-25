@@ -12,7 +12,7 @@ export function build_partition_data(coll, rows, styles, computed) {
   const left_x = midpoint_x - (part_width / 2);
   const right_x = midpoint_x + (part_width / 2);
   const bottom_y = top_y + part_height;
-  const midpoint_y = top_y + (part_height / 2) - (row_height / 2);
+  const midpoint_y = top_y + (part_height / 2);
 
   const rows_data = build_rows_data(rows, styles, { right_x: right_x, top_y: top_y });
 

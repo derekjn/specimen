@@ -1,5 +1,5 @@
 import { build_dynamic_container_data, build_dynamic_row_data } from './components/row';
-import { relative_add } from './util';
+import { relative_add, relative_sub } from './util';
 
 export function build_dynamic_elements_data(layout_index, actions, styles) {
   return actions.reduce((all, action) => {
@@ -18,19 +18,17 @@ export function build_dynamic_elements_data(layout_index, actions, styles) {
 }
 
 export function animation_sequence(layout_index, dynamic_elements, actions, styles) {
-  const { row_width, row_margin_left, row_offset_right } = styles;
+  const { row_width, row_height, row_margin_left, row_offset_right } = styles;
+  const { consumer_m_margin_right } = styles;
 
   let seq = [];
 
   actions.forEach(action => {
     const { old_row, new_row, processed_by } = action;
-    const target = `.id-${old_row.id}`;
 
     const old_row_position = dynamic_elements[old_row.id];
     const old_row_x = old_row_position.x;
     const old_row_y = old_row_position.y;
-
-    const row_width = dynamic_elements[old_row.id].width;
 
     const pq_data = layout_index[action.processed_by];
     const pq_enter_x = pq_data.brackets.bl.x;
@@ -39,7 +37,7 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
     const pq_exit_y = pq_enter_y;
 
     const new_part_x = layout_index[new_row.collection].partitions[new_row.partition].brackets.bl.x;
-    const new_part_y = layout_index[new_row.collection].partitions[new_row.partition].midpoint_y;
+    const new_part_y = layout_index[new_row.collection].partitions[new_row.partition].midpoint_y - (row_height / 2);
 
     const new_part_start_x = layout_index[new_row.collection].partitions[new_row.partition].brackets.tr.x;
     const new_part_margin = ((new_row.offset - 1) * row_margin_left);
@@ -47,36 +45,121 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
 
     const new_row_x = new_part_start_x - new_part_margin - row_offset_right - new_part_spacing;
 
-    dynamic_elements[old_row.id].x = new_row_x;
+    dynamic_elements[old_row.id].x = new_row_x - row_width;
     dynamic_elements[old_row.id].y = new_part_y;
 
+    const consumer_marker_old_x = dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].x;
+    const consumer_marker_new_x = (dynamic_elements[old_row.derived_id].x + (row_width / 2)) - consumer_m_margin_right;
+
+    dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].x = consumer_marker_new_x;
+
     seq.push({
-      id: old_row.id,
-      processed_by: processed_by,
-      animation: [
-        {
-          target: target,
+      kind: "transformation",
+      data: {
+        row: old_row,
+        processed_by: processed_by,
+      },
+      animations: {
+        appear: {
+
+        },
+        enter_pq: {
           translateX: (pq_enter_x - old_row_x) - row_width,
           translateY: (pq_enter_y - old_row_y)
         },
-        {
-          target: target,
+        cross_pq: {
           translateX: (pq_exit_x - pq_enter_x)
         },
-        {
-          target: target,
+        exit_pq: {
           translateX: (new_part_x - pq_exit_x),
           translateY: (new_part_y - pq_exit_y)
         },
-        {
-          target: target,
+        settle: {
           translateX: (new_row_x - new_part_x)
+        },
+        move_consumer_marker: {
+          translateX: (consumer_marker_old_x - consumer_marker_new_x)
         }
-      ]
+      }
     });
   });
   
   return seq;
+}
+
+function transformation_animations(change, t, history, lineage) {
+  const { data, animations } = change;
+  const ms_px = 3;
+  const intro = 250;
+
+  const pq_t = (t[data.processed_by] || 0);
+  const row_history = (history[lineage[data.row.id]] || 0);
+  const t_offset = ((row_history >= pq_t) ? row_history : pq_t);
+
+  const entering_motion = (Math.abs(animations.enter_pq.translateX) + Math.abs(animations.enter_pq.translateY)) * ms_px;
+  const crossing_motion = (Math.abs(animations.cross_pq.translateX)) * ms_px;
+  const exiting_motion = (Math.abs(animations.exit_pq.translateX) + Math.abs(animations.exit_pq.translateY)) * ms_px;
+  const settling_motion = (Math.abs(animations.settle.translateX)) * ms_px;
+  const consumer_motion = (Math.abs(animations.move_consumer_marker.translateX)) * ms_px;
+
+  const row_movement = {
+    t: t_offset,
+    params: {
+      targets: `.id-${data.row.id}`,
+      easing: "linear",
+      keyframes: [
+        {
+          duration: intro,
+          opacity: [0, 1]
+        },
+        {
+          duration: entering_motion,
+          translateX: relative_add(animations.enter_pq.translateX),
+          translateY: relative_add(animations.enter_pq.translateY)
+        },
+        {
+          duration: crossing_motion,
+          translateX: relative_add(animations.cross_pq.translateX),
+          fill: ["#6B84FF", "#FFE56B"]
+        },
+        {
+          duration: exiting_motion,
+          translateX: relative_add(animations.exit_pq.translateX),
+          translateY: relative_add(animations.exit_pq.translateY)
+        },
+        {
+          duration: settling_motion,
+          translateX: relative_add(animations.settle.translateX)
+        }
+      ]
+    }
+  };
+
+  t[data.processed_by] = (t_offset + intro + entering_motion);
+  history[data.row.id] = t_offset + intro + entering_motion + crossing_motion + exiting_motion + settling_motion;
+
+  const consumer_marker_movement = {
+    t: t_offset + intro,
+    params: {
+      targets: `.coll-${data.row.collection}.partition-${data.row.partition}.consumer-${data.processed_by}`,
+      easing: "linear",
+      keyframes: [
+        {
+          duration: 1,
+          opacity: [0, 1]
+        },
+        {
+          duration: consumer_motion,
+          translateX: relative_sub(animations.move_consumer_marker.translateX)
+        }
+      ]
+    }
+  }
+
+  return [
+    row_movement,
+    consumer_marker_movement
+  ];
 }
 
 export function anime_commands(seq, lineage) {
@@ -85,51 +168,12 @@ export function anime_commands(seq, lineage) {
   let history = {};
   let t = {};
 
-  seq.forEach(({ id, processed_by, animation }) => {
-    const intro = 250;
-    const entering_motion = (Math.abs(animation[0].translateX) + Math.abs(animation[0].translateY)) * ms_px;
-    const crossing_motion = (animation[1].translateX) * ms_px;
-    const exiting_motion = (Math.abs(animation[2].translateX) + Math.abs(animation[2].translateY)) * ms_px;
-    const settling_motion = (animation[3].translateX) * ms_px;
-    const pq_t = (t[processed_by] || 0);
-    const row_history = (history[lineage[id]] || 0);
-    const t_offset = ((row_history >= pq_t) ? row_history : pq_t);
+  seq.forEach((change) => {
+    const subcommands = transformation_animations(change, t, history, lineage);
 
-    commands.push({
-      params: {
-        targets: animation[0].target,
-        easing: "linear",
-        keyframes: [
-          {
-            duration: intro,
-            opacity: [0, 1]
-          },
-          {
-            duration: entering_motion,
-            translateX: relative_add(animation[0].translateX),
-            translateY: relative_add(animation[0].translateY)
-          },
-          {
-            duration: crossing_motion,
-            translateX: relative_add(animation[1].translateX),
-            fill: ["#6B84FF", "#FFE56B"]
-          },
-          {
-            duration: exiting_motion,
-            translateX: relative_add(animation[2].translateX),
-            translateY: relative_add(animation[2].translateY)
-          },
-          {
-            duration: settling_motion,
-            translateX: relative_add(animation[3].translateX)
-          }
-        ]
-      },
-      t: t_offset
+    subcommands.forEach(subcommand => {
+      commands.push(subcommand);
     });
-
-    t[processed_by] = (t_offset + intro + entering_motion);
-    history[id] = t_offset + intro + entering_motion + crossing_motion + exiting_motion + settling_motion;
   });
 
   return commands;

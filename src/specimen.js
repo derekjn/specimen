@@ -2,6 +2,7 @@ import * as graphlib from 'graphlib';
 import $ from 'jquery';
 import anime from 'animejs/lib/anime.es.js';
 import {
+  uuidv4,
   inverse_map,
   index_by_name,
   index_by,
@@ -16,6 +17,7 @@ import { build_controls_data, render_controls } from './components/controls';
 import { build_svg_data, render_svg } from './components/svg';
 import { render_persistent_query } from './components/persistent-query';
 import { build_dynamic_container_data } from './components/row';
+import { build_consumer_markers_data, render_consumer_marker } from './components/consumer-marker';
 import { run_until_drained } from './runtime';
 import { build_dynamic_elements_data, animation_sequence, anime_commands } from './animate';
 
@@ -36,6 +38,7 @@ function add_metadata(component) {
   case "collection":
     Object.entries(component.partitions).forEach(([id, partition]) => {
       partition.forEach((row, i) => {
+        row.source_id = uuidv4();
         row.collection = component.name;
         row.partition = id;
         row.offset = i;
@@ -86,12 +89,20 @@ Specimen.prototype.node_kinds = function() {
   }, {});
 }
 
+Specimen.prototype.source_collections = function() {
+  return this._graph.sources();
+}
+
 Specimen.prototype.sink_collections = function() {
   return this._graph.sinks();
 }
 
 Specimen.prototype.parents = function(name) {
   return this._graph.predecessors(name);
+}
+
+Specimen.prototype.children = function(name) {
+  return this._graph.successors(name);
 }
 
 Specimen.prototype.layout_buckets = function() {
@@ -190,18 +201,71 @@ Specimen.prototype.render = function(layout, container, styles) {
   $(container).html($(container).html());
 }
 
+Specimen.prototype.consumer_graph = function() {
+  const kinds = this.node_kinds();
+  const pqs = Object.keys(kinds.persistent_query);
+
+  return Object.entries(kinds.collection).reduce((all, [name, { partitions }]) => {
+    const children = this.children(name);
+    const child_pqs = children.filter(child => pqs.includes(child));
+
+    all[name] = Object.keys(partitions).reduce((parts, part) => {
+      parts[part] = child_pqs;
+      return parts;
+    }, {});
+
+    return all;
+  }, {});
+}
+
+Specimen.prototype.static_row_index = function(layout_index) {
+  const sources = this.source_collections();
+  let result = {};
+
+  sources.forEach(source => {
+    layout_index[source].partitions.forEach(partition => {
+      partition.rows.forEach(row => {
+        result[row.source_id] = row;
+      });
+    });
+  });
+
+  return result;
+}
+
 Specimen.prototype.animate = function(layout, container, styles) {
   const layout_index = index_by_name(layout);
+  const consumer_graph = this.consumer_graph();
+  const static_row_index = this.static_row_index(layout_index);
+
   const { actions, lineage } = run_until_drained(this);
 
   const dynamic_container_data = build_dynamic_container_data(styles);
   const dynamic_data = build_dynamic_elements_data(layout_index, actions, styles);
+  const consumer_markers = build_consumer_markers_data(layout_index, consumer_graph, styles);
 
   render_dynamic_container(dynamic_container_data);
   Object.values(dynamic_data).forEach(data => render_dynamic_row(data));
+
+  const all_dynamic_data = { ...dynamic_data,
+                             ...static_row_index,
+                             ...{
+                               consumer_markers: consumer_markers
+                             }};
+
+  console.log(consumer_markers);
+
+  Object.entries(consumer_markers).forEach(([coll, partitions]) => {
+    Object.entries(partitions).forEach(([partition, pqs]) => {
+      Object.entries(pqs).forEach(([pq, data]) => {
+        render_consumer_marker(data);
+      });
+    });
+  });
+
   $(container).html($(container).html());
 
-  const animations = animation_sequence(layout_index, dynamic_data, actions, styles);
+  const animations = animation_sequence(layout_index, all_dynamic_data, actions, styles);
   const commands = anime_commands(animations, lineage);
 
   var controlsProgressEl = $(container + " > .controls > .progress");
@@ -217,6 +281,7 @@ Specimen.prototype.animate = function(layout, container, styles) {
   $(container + " > .controls > .restart").click(timeline.restart);
 
   controlsProgressEl.on('input', function() {
+    timeline.pause();
     timeline.seek(timeline.duration * (controlsProgressEl.val() / 100));
   });
 
