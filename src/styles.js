@@ -17,11 +17,11 @@ export const styles = {
   coll_tip_len: 10,
   coll_foot_len: 10,
   coll_tip_margin_top: 5,
-  coll_label_margin_bottom: 50,
+  coll_label_margin_bottom: 20,
 
   part_width: 200,
   part_height: 50,
-  part_margin_bottom: 50,
+  part_margin_bottom: 20,
   part_bracket_len: 10,
   part_id_margin_left: -15,
   part_id_margin_top: 8,
