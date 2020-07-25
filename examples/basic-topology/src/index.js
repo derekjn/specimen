@@ -22,6 +22,13 @@ s.add_root({
       { value: 20, t: 2 },
       { value: 21, t: 4 },
       { value: 22, t: 6 }
+    ],
+    3: [
+      { value: 10, t: 1 },
+      { value: 11, t: 3 },
+      { value: 12, t: 4 },
+      { value: 13, t: 5 },
+      { value: 14, t: 5 }
     ]
   }
 });
@@ -40,7 +47,8 @@ s.add_child(["pq1"], {
   partitions: {
     0: [],
     1: [],
-    2: []
+    2: [],
+    3: []
   }
 });
 
@@ -58,7 +66,46 @@ s.add_child(["pq2"], {
   partitions: {
     0: [],
     1: [],
-    2: []
+    2: [],
+    3: []
+  }
+});
+
+s.add_child(["s3"], {
+  name: "pq3",
+  kind: "persistent_query",
+  fn: function(row) {
+    return { ...row, ...{ collection: "s4" } };
+  }
+});
+
+s.add_child(["pq3"], {
+  name: "s4",
+  kind: "collection",
+  partitions: {
+    0: [],
+    1: [],
+    2: [],
+    3: []
+  }
+});
+
+s.add_child(["s4"], {
+  name: "pq4",
+  kind: "persistent_query",
+  fn: function(row) {
+    return { ...row, ...{ collection: "s5" } };
+  }
+});
+
+s.add_child(["pq4"], {
+  name: "s5",
+  kind: "collection",
+  partitions: {
+    0: [],
+    1: [],
+    2: [],
+    3: []
   }
 });
 

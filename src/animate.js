@@ -43,9 +43,9 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
     const new_part_margin = ((new_row.offset - 1) * row_margin_left);
     const new_part_spacing = (new_row.offset * row_width);
 
-    const new_row_x = new_part_start_x - new_part_margin - row_offset_right - new_part_spacing;
+    const new_row_x = new_part_start_x - new_part_margin - row_offset_right - new_part_spacing - row_width;
 
-    dynamic_elements[old_row.id].x = new_row_x - row_width;
+    dynamic_elements[old_row.id].x = new_row_x;
     dynamic_elements[old_row.id].y = new_part_y;
 
     const consumer_marker_old_x = dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].x;
@@ -64,7 +64,7 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
 
         },
         enter_pq: {
-          translateX: (pq_enter_x - old_row_x) - row_width,
+          translateX: (pq_enter_x - old_row_x),
           translateY: (pq_enter_y - old_row_y)
         },
         cross_pq: {
