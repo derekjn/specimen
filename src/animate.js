@@ -145,6 +145,10 @@ function transformation_animations(change, t, history, lineage) {
       easing: "linear",
       keyframes: [
         {
+          duration: 1,
+          opacity: [0, 1]
+        },
+        {
           duration: consumer_motion,
           translateX: relative_sub(animations.move_consumer_marker.translateX)
         }
