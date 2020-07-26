@@ -17,7 +17,7 @@ export function build_persistent_query_data(config, styles, computed) {
   return {
     data: {
       kind: "persistent_query",
-      style: pq_style,
+      style: pq_style || {},
       line: {
         x1: midpoint_x,
         y1: 0,

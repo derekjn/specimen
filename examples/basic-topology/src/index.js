@@ -1,7 +1,7 @@
 import { Specimen } from '../../../src/index';
 import { styles } from '../../../src/styles';
 
-const my_styles = { ...styles, ...{ svg_width: 800, svg_height: 1000 } };
+const my_styles = { ...styles, ...{ svg_width: 1200, svg_height: 500 } };
 let s = new Specimen(my_styles);
 
 s.add_root({
@@ -9,26 +9,26 @@ s.add_root({
   kind: "collection",
   partitions: {
     0: [
-      { value: 40, t: 2 },//, style: { fill: "#ff9c6b" } },
+      { value: 40, t: 2 },
       { value: 41, t: 4 },
-      { value: 42, t: 7 },// style: { fill: "#ff9c6b" } }
+      { value: 42, t: 7 }
     ],
     1: [
       { value: 30, t: 1 },
-      { value: 31, t: 3 }, // style: { fill: "#ff9c6b" } },
+      { value: 31, t: 3 },
       { value: 32, t: 5 },
       { value: 33, t: 6 }
     ],
     2: [
-      { value: 20, t: 2 },//, style: { fill: "#ff9c6b" } },
-      { value: 21, t: 4 },//, style: { fill: "#ff9c6b" } },
-      { value: 22, t: 6 },//, style: { fill: "#ff9c6b" } }
+      { value: 20, t: 2 },
+      { value: 21, t: 4 },
+      { value: 22, t: 6 }
     ],
     3: [
       { value: 10, t: 1 },
       { value: 11, t: 3 },
-      { value: 12, t: 4 },//, style: { fill: "#ff9c6b" } },
-      { value: 13, t: 5 }, //style: { fill: "#ff9c6b" } },
+      { value: 12, t: 4 },
+      { value: 13, t: 5 },
       { value: 14, t: 5 }
     ]
   }
@@ -61,62 +61,56 @@ s.add_child(["pq1"], {
   }
 });
 
-// s.add_child(["s2"], {
-//   name: "pq2",
-//   kind: "persistent_query",
-//   fn: function(row) {
-//     return { ...row, ...{ collection: "s3" } };
-//   }
-// });
+s.add_child(["s2"], {
+  name: "pq2",
+  kind: "persistent_query",
+  into: "s3"
+});
 
-// s.add_child(["pq2"], {
-//   name: "s3",
-//   kind: "collection",
-//   partitions: {
-//     0: [],
-//     1: [],
-//     2: [],
-//     3: []
-//   }
-// });
+s.add_child(["pq2"], {
+  name: "s3",
+  kind: "collection",
+  partitions: {
+    0: [],
+    1: [],
+    2: [],
+    3: []
+  }
+});
 
-// s.add_child(["s3"], {
-//   name: "pq3",
-//   kind: "persistent_query",
-//   fn: function(row) {
-//     return { ...row, ...{ collection: "s4" } };
-//   }
-// });
+s.add_child(["s3"], {
+  name: "pq3",
+  kind: "persistent_query",
+  into: "s4"
+});
 
-// s.add_child(["pq3"], {
-//   name: "s4",
-//   kind: "collection",
-//   partitions: {
-//     0: [],
-//     1: [],
-//     2: [],
-//     3: []
-//   }
-// });
+s.add_child(["pq3"], {
+  name: "s4",
+  kind: "collection",
+  partitions: {
+    0: [],
+    1: [],
+    2: [],
+    3: []
+  }
+});
 
-// s.add_child(["s4"], {
-//   name: "pq4",
-//   kind: "persistent_query",
-//   fn: function(row) {
-//     return { ...row, ...{ collection: "s5" } };
-//   }
-// });
+s.add_child(["s4"], {
+  name: "pq4",
+  kind: "persistent_query",
+  into: "s5"
+});
 
-// s.add_child(["pq4"], {
-//   name: "s5",
-//   kind: "collection",
-//   partitions: {
-//     0: [],
-//     1: [],
-//     2: [],
-//     3: []
-//   }
-// });
+s.add_child(["pq4"], {
+  name: "s5",
+  kind: "collection",
+  partitions: {
+    0: [],
+    1: [],
+    2: [],
+    3: []
+  }
+});
 
 const container = ".animation-container-1";
 const layout = s.horizontal_layout(my_styles);

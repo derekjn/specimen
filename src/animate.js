@@ -26,6 +26,7 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
   actions.forEach(action => {
     const { old_row, new_row, processed_by } = action;
 
+    // Row position changes.
     const old_row_position = dynamic_elements[old_row.id];
     const old_row_x = old_row_position.x;
     const old_row_y = old_row_position.y;
@@ -48,16 +49,20 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
     dynamic_elements[old_row.id].x = new_row_x;
     dynamic_elements[old_row.id].y = new_part_y;
 
+    // Consumer marker changes.
     const consumer_marker_old_x = dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].x;
     const consumer_marker_new_x = (dynamic_elements[old_row.derived_id].x + (row_width / 2)) - consumer_m_margin_right;
 
     dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].x = consumer_marker_new_x;
 
+    // Fill changes.
+    dynamic_elements[old_row.id].fill = dynamic_elements[old_row.derived_id].fill;
 
     let fill_change = undefined;
     if(pq_data.style.fill) {
-      const new_fill = pq_data.style.fill(old_row, new_row);
-      fill_change = [old_row.style.fill, new_fill];
+      const new_fill = pq_data.style.fill(old_row, new_row);      
+      fill_change = [dynamic_elements[old_row.id].fill, new_fill];
+      dynamic_elements[old_row.id].fill = new_fill;
     }
 
     seq.push({
@@ -68,7 +73,7 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
       },
       animations: {
         appear: {
-
+          fill: dynamic_elements[old_row.derived_id].fill
         },
         enter_pq: {
           translateX: (pq_enter_x - old_row_x),
@@ -109,7 +114,7 @@ function transformation_animations(change, t, history, lineage) {
   const exiting_motion = (Math.abs(animations.exit_pq.translateX) + Math.abs(animations.exit_pq.translateY)) * ms_px;
   const settling_motion = (Math.abs(animations.settle.translateX)) * ms_px;
   const consumer_motion = (Math.abs(animations.move_consumer_marker.translateX)) * ms_px;
-
+  
   const row_movement = {
     t: t_offset,
     params: {
@@ -118,7 +123,8 @@ function transformation_animations(change, t, history, lineage) {
       keyframes: [
         {
           duration: intro,
-          opacity: [0, 1]
+          opacity: [0, 1],
+          fill: animations.appear.fill
         },
         {
           duration: entering_motion,
