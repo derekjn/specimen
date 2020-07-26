@@ -1,7 +1,7 @@
 import $ from 'jquery';
 
 export function build_persistent_query_data(config, styles, computed) {
-  const { name } = config;
+  const { name, style: pq_style } = config;
   const { svg_target } = styles;
   const { pq_width, pq_height, pq_margin_top, pq_bracket_len } = styles;
   const { pq_label_margin_left, pq_label_margin_bottom } = styles;
@@ -17,6 +17,7 @@ export function build_persistent_query_data(config, styles, computed) {
   return {
     data: {
       kind: "persistent_query",
+      style: pq_style,
       line: {
         x1: midpoint_x,
         y1: 0,

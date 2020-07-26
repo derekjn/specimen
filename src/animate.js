@@ -19,7 +19,7 @@ export function build_dynamic_elements_data(layout_index, actions, styles) {
 
 export function animation_sequence(layout_index, dynamic_elements, actions, styles) {
   const { row_width, row_height, row_margin_left, row_offset_right } = styles;
-  const { consumer_m_margin_right } = styles;
+  const { consumer_m_margin_right, d_row_enter_offset } = styles;
 
   let seq = [];
 
@@ -53,6 +53,13 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
 
     dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].x = consumer_marker_new_x;
 
+
+    let fill_change = undefined;
+    if(pq_data.style.fill) {
+      const new_fill = pq_data.style.fill(old_row, new_row);
+      fill_change = [old_row.style.fill, new_fill];
+    }
+
     seq.push({
       kind: "transformation",
       data: {
@@ -68,14 +75,15 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
           translateY: (pq_enter_y - old_row_y)
         },
         cross_pq: {
-          translateX: ((pq_exit_x - row_width) - pq_enter_x)
+          translateX: ((pq_exit_x - row_width) - pq_enter_x),
+          fill: fill_change
         },
         exit_pq: {
-          translateX: (new_part_x - (pq_exit_x - row_width)),
+          translateX: ((new_part_x - d_row_enter_offset) - (pq_exit_x - row_width)),
           translateY: (new_part_y - pq_exit_y)
         },
         settle: {
-          translateX: (new_row_x - new_part_x)
+          translateX: (new_row_x - (new_part_x - d_row_enter_offset))
         },
         move_consumer_marker: {
           translateX: (consumer_marker_old_x - consumer_marker_new_x)
@@ -120,7 +128,7 @@ function transformation_animations(change, t, history, lineage) {
         {
           duration: crossing_motion,
           translateX: relative_add(animations.cross_pq.translateX),
-          fill: ["#6B84FF", "#FFE56B"]
+          fill: animations.cross_pq.fill
         },
         {
           duration: exiting_motion,

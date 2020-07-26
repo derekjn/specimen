@@ -72,6 +72,16 @@ function initialize_offsets(specimen, pqs, colls) {
   }, {});
 }
 
+function set_new_collection(new_row, into) {
+  new_row.collection = into;
+}
+
+function set_new_partition(context, new_row, partition_by) {
+  if (partition_by) {
+    new_row.partition = partition_by(context, new_row);
+  }
+}
+
 export function run_until_drained(specimen) {
   const kinds = specimen.node_kinds();
   const colls = kinds.collection;
@@ -88,11 +98,20 @@ export function run_until_drained(specimen) {
     const pq = pq_seq[0];
     const parents = specimen.parents(pq);
     const parent_colls = select_keys(colls, parents);
+    
     const old_row = choose_lowest_timestamp(parent_colls, offsets[pq]);
 
     if (old_row) {
-      const { fn } = pqs[pq];
-      const new_row = fn(old_row);
+      const { into, partition_by } = pqs[pq];
+      const new_row = { ...old_row };
+
+      const context = {
+        partitions: Object.keys(colls[into].partitions).length
+      };
+
+      set_new_collection(new_row, into);
+      set_new_partition(context, new_row, partition_by);
+
       old_row.id = uuidv4();
       new_row.derived_id = old_row.id;
 

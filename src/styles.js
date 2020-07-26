@@ -5,10 +5,10 @@ export const styles = {
 
   dynamic_target: "dynamic-elements",
 
-  pq_width: 75,
-  pq_height: 75,
+  pq_width: 150,
+  pq_height: 150,
   pq_margin_top: 50,
-  pq_bracket_len: 15,
+  pq_bracket_len: 25,
   pq_label_margin_left: 0,
   pq_label_margin_bottom: 10,
 
@@ -19,19 +19,21 @@ export const styles = {
   coll_tip_margin_top: 5,
   coll_label_margin_bottom: 20,
 
-  part_width: 100,
-  part_height: 25,
+  part_width: 200,
+  part_height: 50,
   part_margin_bottom: 30,
   part_bracket_len: 10,
   part_id_margin_left: -15,
   part_id_margin_top: 8,
 
-  row_width: 10,
-  row_height: 10,
-  row_margin_left: 5,
-  row_offset_right: 10,
+  row_width: 15,
+  row_height: 15,
+  row_margin_left: 10,
+  row_offset_right: 25,
+  row_default_fill: "#6b84ff",
 
   d_row_margin_left: 10,
+  d_row_enter_offset: 30,
 
   consumer_m_init_margin_left: 3,
   consumer_m_text_margin_bottom: 15,

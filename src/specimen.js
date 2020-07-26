@@ -33,7 +33,9 @@ function build_data(node, styles, computed) {
   }
 }
 
-function add_metadata(component) {
+function add_metadata(component, styles) {
+  const { row_default_fill } = styles;
+  
   switch(component.kind) {
   case "collection":
     Object.entries(component.partitions).forEach(([id, partition]) => {
@@ -42,6 +44,7 @@ function add_metadata(component) {
         row.collection = component.name;
         row.partition = id;
         row.offset = i;
+        row.style = { ...{ fill: row_default_fill }, ...row.style };
       });
     });
 
@@ -51,17 +54,18 @@ function add_metadata(component) {
   }
 }
 
-export function Specimen() {
+export function Specimen(styles) {
   this._graph = new graphlib.Graph();
+  this._styles = styles;
 }
 
 Specimen.prototype.add_root = function(node) {
-  this._graph.setNode(node.name, add_metadata(node));
+  this._graph.setNode(node.name, add_metadata(node, this._styles));
   return this;
 }
 
 Specimen.prototype.add_child = function(parents, node) {
-  this._graph.setNode(node.name, add_metadata(node));
+  this._graph.setNode(node.name, add_metadata(node, this._styles));
 
   parents.forEach(parent => {
     this._graph.setEdge(parent, node.name);
@@ -129,8 +133,8 @@ Specimen.prototype.layout_buckets = function() {
   return inverse_map(index);
 }
 
-Specimen.prototype.horizontal_layout = function(styles) {
-  const { svg_width } = styles;
+Specimen.prototype.horizontal_layout = function() {
+  const { svg_width } = this._styles;
 
   const buckets = this.layout_buckets();
   const n = Object.keys(buckets).length;
@@ -146,7 +150,7 @@ Specimen.prototype.horizontal_layout = function(styles) {
     names.sort().forEach(name => {
       const node = this._graph.node(name);
       const computed = { top_y: top_y, midpoint_x: midpoint_x };
-      const { data, state } = build_data(node, styles, computed);
+      const { data, state } = build_data(node, this._styles, computed);
 
       data.name = name;
       top_y = state.bottom_y;
@@ -179,20 +183,20 @@ function render_dynamic_container(data) {
 }
 
 function render_dynamic_row(data) {
-  const { container, width, height, x, y } = data;
+  const { container, width, height, x, y, fill } = data;
   const { id, collection, partition, offset } = data;
 
-  const html = `<rect width="${width}" height="${height}" x="${x}" y="${y}" class="row id-${id} collection-${collection} partition-${partition} offset-${offset}"></rect>`;
+  const html = `<rect width="${width}" height="${height}" x="${x}" y="${y}" class="row id-${id} collection-${collection} partition-${partition} offset-${offset}" fill="${fill}"></rect>`;
 
   $("." + container).append(html);  
 }
 
-Specimen.prototype.render = function(layout, container, styles) {
-  const controls_data = build_controls_data(styles);
+Specimen.prototype.render = function(layout, container) {
+  const controls_data = build_controls_data(this._styles);
   render_controls(container, controls_data);
 
-  const { svg_width } = styles;
-  const svg_data = build_svg_data(styles);
+  const { svg_width } = this._styles;
+  const svg_data = build_svg_data(this._styles);
   render_svg(container, svg_data);
 
   layout.forEach(data => render(data));
@@ -233,16 +237,16 @@ Specimen.prototype.static_row_index = function(layout_index) {
   return result;
 }
 
-Specimen.prototype.animate = function(layout, container, styles) {
+Specimen.prototype.animate = function(layout, container) {
   const layout_index = index_by_name(layout);
   const consumer_graph = this.consumer_graph();
   const static_row_index = this.static_row_index(layout_index);
 
   const { actions, lineage } = run_until_drained(this);
 
-  const dynamic_container_data = build_dynamic_container_data(styles);
-  const dynamic_data = build_dynamic_elements_data(layout_index, actions, styles);
-  const consumer_markers = build_consumer_markers_data(layout_index, consumer_graph, styles);
+  const dynamic_container_data = build_dynamic_container_data(this._styles);
+  const dynamic_data = build_dynamic_elements_data(layout_index, actions, this._styles);
+  const consumer_markers = build_consumer_markers_data(layout_index, consumer_graph, this._styles);
 
   render_dynamic_container(dynamic_container_data);
   Object.values(dynamic_data).forEach(data => render_dynamic_row(data));
@@ -252,8 +256,6 @@ Specimen.prototype.animate = function(layout, container, styles) {
                              ...{
                                consumer_markers: consumer_markers
                              }};
-
-  console.log(consumer_markers);
 
   Object.entries(consumer_markers).forEach(([coll, partitions]) => {
     Object.entries(partitions).forEach(([partition, pqs]) => {
@@ -265,7 +267,7 @@ Specimen.prototype.animate = function(layout, container, styles) {
 
   $(container).html($(container).html());
 
-  const animations = animation_sequence(layout_index, all_dynamic_data, actions, styles);
+  const animations = animation_sequence(layout_index, all_dynamic_data, actions, this._styles);
   const commands = anime_commands(animations, lineage);
 
   var controlsProgressEl = $(container + " > .controls > .progress");
