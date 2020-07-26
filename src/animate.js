@@ -68,10 +68,10 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
           translateY: (pq_enter_y - old_row_y)
         },
         cross_pq: {
-          translateX: (pq_exit_x - pq_enter_x)
+          translateX: ((pq_exit_x - row_width) - pq_enter_x)
         },
         exit_pq: {
-          translateX: (new_part_x - pq_exit_x),
+          translateX: (new_part_x - (pq_exit_x - row_width)),
           translateY: (new_part_y - pq_exit_y)
         },
         settle: {
