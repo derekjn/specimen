@@ -1,3 +1,4 @@
+import { uuidv4 } from './../util';
 import $ from 'jquery';
 
 function build_consumer_marker_data(consumer, styles, computed) {
@@ -20,6 +21,7 @@ function build_consumer_marker_data(consumer, styles, computed) {
   return {
     data: {
       kind: "consumer_marker",
+      id: uuidv4(),
       name: name,
       collection: collection,
       partition: partition,
@@ -35,11 +37,11 @@ function build_consumer_marker_data(consumer, styles, computed) {
 }
 
 export function render_consumer_marker(data) {
-  const { name, collection, partition } = data;
+  const { id, name, collection, partition } = data;
   const { container, x, arrow_y, text_y } = data;
 
   const html = `
-<g class="coll-${collection} partition-${partition} consumer-${name}">
+<g class="coll-${collection} partition-${partition} consumer-${name} id-${id}">
     <text x="${x}" y="${text_y}" text-anchor="middle" class="code">${name}</text>
     <text x="${x}" y="${arrow_y}" class="code">↓</text>
 </g>

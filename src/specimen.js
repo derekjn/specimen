@@ -273,6 +273,7 @@ Specimen.prototype.animate = function(layout, container) {
   var controlsProgressEl = $(container + " > .controls > .progress");
 
   const timeline = anime.timeline({
+    loop: true,
     update: function(anim) {
       controlsProgressEl.val(timeline.progress);
     }

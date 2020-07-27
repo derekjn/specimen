@@ -55,6 +55,11 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
 
     dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].x = consumer_marker_new_x;
 
+    let consumer_marker_opacity = undefined;
+    if(old_row.offset == 0) {
+      consumer_marker_opacity = [0, 1];
+    }
+
     // Fill changes.
     dynamic_elements[old_row.id].fill = dynamic_elements[old_row.derived_id].fill;
 
@@ -70,6 +75,7 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
       data: {
         row: old_row,
         processed_by: processed_by,
+        consumer_id: dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].id
       },
       animations: {
         appear: {
@@ -91,7 +97,8 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
           translateX: (new_row_x - (new_part_x - d_row_enter_offset))
         },
         move_consumer_marker: {
-          translateX: (consumer_marker_old_x - consumer_marker_new_x)
+          translateX: (consumer_marker_old_x - consumer_marker_new_x),
+          opacity: consumer_marker_opacity
         }
       }
     });
@@ -155,12 +162,12 @@ function transformation_animations(change, t, history, lineage) {
   const consumer_marker_movement = {
     t: t_offset + intro,
     params: {
-      targets: `.coll-${data.row.collection}.partition-${data.row.partition}.consumer-${data.processed_by}`,
+      targets: `.coll-${data.row.collection}.partition-${data.row.partition}.consumer-${data.processed_by}.id-${data.consumer_id}`,
       easing: "linear",
       keyframes: [
         {
           duration: 1,
-          opacity: [0, 1]
+          opacity: animations.move_consumer_marker.opacity
         },
         {
           duration: consumer_motion,

@@ -30,7 +30,7 @@ export const styles = {
   row_height: 10,
   row_margin_left: 5,
   row_offset_right: 10,
-  row_default_fill: "#6b84ff",
+  row_default_fill: "#173361",
 
   d_row_margin_left: 10,
   d_row_enter_offset: 30,
