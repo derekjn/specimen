@@ -201,7 +201,7 @@ Specimen.prototype.render = function(layout, container) {
   render_svg(container, svg_data);
 
   layout.forEach(data => render(data));
-  render_query_text(layout, this._styles.svg_target);
+  render_query_text(layout, this._styles.svg_target, this._styles.svg_width);
 
   // Repaint.
   $(container).html($(container).html());
