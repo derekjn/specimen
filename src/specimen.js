@@ -18,6 +18,7 @@ import { build_svg_data, render_svg } from './components/svg';
 import { render_persistent_query } from './components/persistent-query';
 import { build_dynamic_container_data } from './components/row';
 import { build_consumer_markers_data, render_consumer_marker } from './components/consumer-marker';
+import { render_query_text } from './query-text';
 import { run_until_drained } from './runtime';
 import { build_dynamic_elements_data, animation_sequence, anime_commands } from './animate';
 
@@ -200,6 +201,7 @@ Specimen.prototype.render = function(layout, container) {
   render_svg(container, svg_data);
 
   layout.forEach(data => render(data));
+  render_query_text(layout, this._styles.svg_target);
 
   // Repaint.
   $(container).html($(container).html());
@@ -273,7 +275,7 @@ Specimen.prototype.animate = function(layout, container) {
   var controlsProgressEl = $(container + " > .controls > .progress");
 
   const timeline = anime.timeline({
-    loop: true,
+    autoplay: false,
     update: function(anim) {
       controlsProgressEl.val(timeline.progress);
     }

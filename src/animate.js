@@ -109,7 +109,7 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
 
 function transformation_animations(change, t, history, lineage) {
   const { data, animations } = change;
-  const ms_px = 3;
+  const ms_px = 2;
   const intro = 250;
 
   const pq_t = (t[data.processed_by] || 0);
