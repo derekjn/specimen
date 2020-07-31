@@ -128,9 +128,10 @@ export function run_until_drained(specimen) {
         to: new_row.collection,
         processed_by: pq,
         old_row: old_row,
-        new_row: new_row
-      };
-
+        new_row: new_row,
+        offsets: cloneOffsets(offsets[pq]),        
+      };      
+      
       actions.push(action);
     }
     
@@ -142,3 +143,26 @@ export function run_until_drained(specimen) {
     lineage: lineage
   };
 }
+
+const cloneOffsets = (m) => Object.entries(m)
+      .reduce((acc, [k, v])=> (acc[k]={...v}, acc), {});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

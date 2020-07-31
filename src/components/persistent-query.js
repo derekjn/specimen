@@ -2,6 +2,7 @@ import $ from 'jquery';
 
 export function build_persistent_query_data(config, styles, computed) {
   const { name, query_text, style: pq_style } = config;
+  
   const { svg_target } = styles;
   const { pq_width, pq_height, pq_margin_top, pq_bracket_len } = styles;
   const { pq_label_margin_left, pq_label_margin_bottom } = styles;
@@ -57,7 +58,10 @@ export function build_persistent_query_data(config, styles, computed) {
           h: -b_len
         }
       },
-      midpoint_y: bottom_y - (pq_height / 2)
+      midpoint_y: bottom_y - (pq_height / 2),
+      midpoint_x,
+      bottom_y,
+      source_partitions: computed.source_partitions,
     },
     state: {
       bottom_y: bottom_y
@@ -66,9 +70,11 @@ export function build_persistent_query_data(config, styles, computed) {
 }
 
 export function render_persistent_query(data) {
-  const { line, brackets, label, target } = data;
+  const { line, brackets, label, target, midpoint_x, bottom_y, source_partitions } = data;
   const { tl, tr, bl, br } = brackets;
 
+  const offsetsLabelsOffsetY = bottom_y + 20;
+  
   const html = `
 <g class="persistent-query-container">
     <line x1="${line.x1}" y1="${line.y1}" x2="${line.x2}" y2="${line.y2}" class="pq-connector"></line>
@@ -79,7 +85,24 @@ export function render_persistent_query(data) {
     <path d="M ${br.x},${br.y} v ${br.v} h ${br.h}" class="pq"></path>
 
     <text x="${label.x}" y ="${label.y}" class="code">${label.name}</text>
+    <g class="offsets-container"></g>
 </g>`;
 
+  console.log(source_partitions, label.name);
+  
   $("." + target).append(html);
+
+  const {offsets, y} = Object.entries(source_partitions)
+        .flatMap(([streamName, partitions]) => partitions.map((p)=>([streamName, p])))
+        .reduce(({offsets}, [streamName, name], i) => {
+          const y = (bottom_y + 25) + i*15;
+    offsets.push(`<text data-stream="${streamName}" data-partition="${name}" x="${bl.x}" y="${y}" class="code pq-${label.name}">${streamName}/${name}: <tspan>0</tspan></text>`);
+
+    return {y, offsets}
+  }, {y: 0, offsets:[]});
+
+  //const realBottom = y + offsetsLabelsOffsetY;
+  
+  $(`.${target} .offsets-container`).append(offsets.join());
+  
 }

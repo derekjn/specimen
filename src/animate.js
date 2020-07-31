@@ -17,6 +17,7 @@ export function build_dynamic_elements_data(layout_index, actions, styles) {
   }, {});
 }
 
+// build data structure processed by animejs
 export function animation_sequence(layout_index, dynamic_elements, actions, styles) {
   const { row_width, row_height, row_margin_left, row_offset_right } = styles;
   const { consumer_m_margin_right, d_row_enter_offset } = styles;
@@ -75,7 +76,8 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
       data: {
         row: old_row,
         processed_by: processed_by,
-        consumer_id: dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].id
+        consumer_id: dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].id,
+        offsets: action.offsets,
       },
       animations: {
         appear: {
@@ -99,6 +101,9 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
         move_consumer_marker: {
           translateX: (consumer_marker_old_x - consumer_marker_new_x),
           opacity: consumer_marker_opacity
+        },
+        update_offsets: {
+          
         }
       }
     });
@@ -159,6 +164,31 @@ function transformation_animations(change, t, history, lineage) {
   t[data.processed_by] = (t_offset + intro + entering_motion);
   history[data.row.id] = t_offset + intro + entering_motion + crossing_motion + exiting_motion + settling_motion;
 
+  const { offsets, row } = data;
+  
+  // row.partition, row.collection
+  // {s2: {0: 3, 1: 4, 2: 3, 3: 5}}
+
+  const update_offset_text = {
+    t: t_offset + consumer_motion + 1,
+    params: {
+      targets: `.pq-${data.processed_by}`,
+      update: (anime) => {
+        console.log(anime);
+        const {animatables} = anime;
+        animatables.forEach(({target}) => {
+          const s = target.getAttribute('data-stream');
+          const p = target.getAttribute('data-partition');
+
+          const offset = data.offsets[s][p];
+          target.lastChild.textContent /*tspan*/ = offset;
+        });
+      },
+      duration: 1,
+    }
+
+  }
+  
   const consumer_marker_movement = {
     t: t_offset + intro,
     params: {
@@ -172,14 +202,15 @@ function transformation_animations(change, t, history, lineage) {
         {
           duration: consumer_motion,
           translateX: relative_sub(animations.move_consumer_marker.translateX)
-        }
+        },
       ]
     }
   }
 
   return [
     row_movement,
-    consumer_marker_movement
+    consumer_marker_movement,
+    update_offset_text,
   ];
 }
 

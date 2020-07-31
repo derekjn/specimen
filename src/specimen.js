@@ -29,7 +29,7 @@ function build_data(node, styles, computed) {
   case "collection":
     return build_collection_data(node, styles, computed);
 
-  case "persistent_query":
+  case "persistent_query":    
     return build_persistent_query_data(node, styles, computed);
   }
 }
@@ -151,6 +151,15 @@ Specimen.prototype.horizontal_layout = function() {
     names.sort().forEach(name => {
       const node = this._graph.node(name);
       const computed = { top_y: top_y, midpoint_x: midpoint_x };
+      if (node.kind == 'persistent_query') {
+        const source_partitions = this.parents(node.name).reduce((acc, parent) => {
+          const node = this.get_node(parent);
+          acc[parent] = Object.keys(node.partitions);          
+          return acc;
+        }, {});
+
+        computed.source_partitions = source_partitions;
+      }           
       const { data, state } = build_data(node, this._styles, computed);
 
       data.name = name;
@@ -275,7 +284,7 @@ Specimen.prototype.animate = function(layout, container) {
   var controlsProgressEl = $(container + " > .controls > .progress");
 
   const timeline = anime.timeline({
-    autoplay: false,
+    autoplay: true,
     update: function(anim) {
       controlsProgressEl.val(timeline.progress);
     }

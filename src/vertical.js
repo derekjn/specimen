@@ -80,6 +80,7 @@ function persistent_query_translate_y(data, height) {
   data.brackets.br.y += height;
 
   data.midpoint_y += height;
+  data.bottom_y += height;
 
   data.label.y += height;
   
