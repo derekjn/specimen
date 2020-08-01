@@ -82,6 +82,11 @@ function set_new_partition(context, new_row, partition_by) {
   }
 }
 
+function clone_offsets(m) {
+  return Object.entries(m)
+    .reduce((acc, [k, v])=> (acc[k]={...v}, acc), {});
+}
+
 export function run_until_drained(specimen) {
   const kinds = specimen.node_kinds();
   const colls = kinds.collection;
@@ -128,7 +133,8 @@ export function run_until_drained(specimen) {
         to: new_row.collection,
         processed_by: pq,
         old_row: old_row,
-        new_row: new_row
+        new_row: new_row,
+        offsets: clone_offsets(offsets[pq])
       };
 
       actions.push(action);

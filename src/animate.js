@@ -24,7 +24,7 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
   let seq = [];
 
   actions.forEach(action => {
-    const { old_row, new_row, processed_by } = action;
+    const { old_row, new_row, processed_by, offsets } = action;
 
     // Row position changes.
     const old_row_position = dynamic_elements[old_row.id];
@@ -75,7 +75,8 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
       data: {
         row: old_row,
         processed_by: processed_by,
-        consumer_id: dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].id
+        consumer_id: dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].id,
+        offsets: offsets
       },
       animations: {
         appear: {
@@ -177,25 +178,50 @@ function transformation_animations(change, t, history, lineage) {
     }
   }
 
-  return [
-    row_movement,
-    consumer_marker_movement
-  ];
+  const update_offset_text = {
+    t: t_offset + consumer_motion + 1,
+    callback: function() {
+      Object.entries(data.offsets).forEach(([ collection, partitions] ) => {
+        Object.entries(partitions).forEach(([ partition, offset ]) => {
+          const el = document.querySelector(`.collection-${collection}.partition-${partition}.pq-${data.processed_by}`);
+          el.lastChild.textContent = offset;
+        });
+      });
+    }
+  }
+
+  return {
+    commands: [
+      row_movement,
+      consumer_marker_movement
+    ],
+    callbacks: [
+      update_offset_text
+    ]
+  };
 }
 
-export function anime_commands(seq, lineage) {
+export function anime_data(seq, lineage) {
   const ms_px = 3;
-  let commands = [];
+
+  let result = {
+    commands: [],
+    callbacks: []
+  };
   let history = {};
   let t = {};
 
   seq.forEach((change) => {
-    const subcommands = transformation_animations(change, t, history, lineage);
+    const { commands: cmds, callbacks: cbs } = transformation_animations(change, t, history, lineage);
 
-    subcommands.forEach(subcommand => {
-      commands.push(subcommand);
+    cmds.forEach(cmd => {
+      result.commands.push(cmd);
+    });
+
+    cbs.forEach(cb => {
+      result.callbacks.push(cb)
     });
   });
 
-  return commands;
+  return result;
 }

@@ -12,8 +12,7 @@ function persistent_query_y_top(data) {
 }
 
 function persistent_query_y_bottom(data) {
-  const bl = data.brackets.bl;
-  return (bl.y + bl.v);
+  return data.bottom_y;
 }
 
 function rendered_y_top(data) {
@@ -80,8 +79,13 @@ function persistent_query_translate_y(data, height) {
   data.brackets.br.y += height;
 
   data.midpoint_y += height;
+  data.bottom_y += height;
 
   data.label.y += height;
+
+  data.source_partitions.partitions.forEach(partition => {
+    partition.y += height;
+  });
   
   return data;
 }
