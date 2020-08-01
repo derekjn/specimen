@@ -299,6 +299,7 @@ Specimen.prototype.animate = function(layout, container) {
   let callback_index = 0;
 
   const timeline = anime.timeline({
+    autoplay: false,
     update: function(anim) {
       const anime_t = anim.currentTime;
 
@@ -308,7 +309,7 @@ Specimen.prototype.animate = function(layout, container) {
         }
 
         while ((callback_index < callbacks.length) && callbacks[callback_index].t <= anime_t) {
-          callbacks[callback_index].callback();
+          callbacks[callback_index].apply();
           callback_index++;
         }
       } else {
@@ -317,7 +318,7 @@ Specimen.prototype.animate = function(layout, container) {
         }
 
         while ((callback_index >= 0) && callbacks[callback_index].t >= anime_t) {
-          callbacks[callback_index].callback();
+          callbacks[callback_index].undo();
           callback_index--;
         }
       }

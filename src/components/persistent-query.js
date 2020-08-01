@@ -106,7 +106,7 @@ function source_partitions_html({ partitions, name }) {
 
   partitions.forEach(data => {
     html += `
-<text x="${data.x}" y="${data.y}" class="code collection-${data.collection} partition-${data.partition} pq-${name}">${data.collection}/${data.partition}: <tspan>0</tspan></text>`;
+<text x="${data.x}" y="${data.y}" class="code collection-${data.collection} partition-${data.partition} pq-${name}">${data.collection}/${data.partition}: <tspan>-</tspan></text>`;
   });
 
   return html;
