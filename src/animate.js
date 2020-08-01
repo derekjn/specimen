@@ -195,7 +195,7 @@ function transformation_animations(change, t, history, lineage) {
   }
 
   const update_offset_text = {
-    t: t_offset + consumer_motion + 1,
+    t: (t_offset + intro + entering_motion),
     apply: function() {
       update_pq_offsets(data.processed_by, data.offsets);
     },
