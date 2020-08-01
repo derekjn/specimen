@@ -84,15 +84,15 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
           fill: dynamic_elements[old_row.derived_id].fill
         },
         enter_pq: {
-          translateX: (pq_enter_x - old_row_x),
+          translateX: ((pq_enter_x - d_row_enter_offset) - old_row_x),
           translateY: (pq_enter_y - old_row_y)
         },
         cross_pq: {
-          translateX: ((pq_exit_x - row_width) - pq_enter_x),
+          translateX: ((pq_exit_x - row_width + d_row_enter_offset) - (pq_enter_x - d_row_enter_offset)),
           fill: fill_change
         },
         exit_pq: {
-          translateX: ((new_part_x - d_row_enter_offset) - (pq_exit_x - row_width)),
+          translateX: ((new_part_x - d_row_enter_offset) - (pq_exit_x - row_width + d_row_enter_offset)),
           translateY: (new_part_y - pq_exit_y)
         },
         settle: {
