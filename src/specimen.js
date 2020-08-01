@@ -20,7 +20,7 @@ import { build_dynamic_container_data } from './components/row';
 import { build_consumer_markers_data, render_consumer_marker } from './components/consumer-marker';
 import { render_query_text } from './query-text';
 import { run_until_drained } from './runtime';
-import { build_dynamic_elements_data, animation_sequence, anime_commands } from './animate';
+import { build_dynamic_elements_data, animation_sequence, anime_data } from './animate';
 
 import { styles } from './styles';
 
@@ -151,6 +151,17 @@ Specimen.prototype.horizontal_layout = function() {
     names.sort().forEach(name => {
       const node = this._graph.node(name);
       const computed = { top_y: top_y, midpoint_x: midpoint_x };
+
+      if (node.kind == "persistent_query") {
+        const source_partitions = this.parents(node.name).reduce((acc, parent) => {
+          const node = this.get_node(parent);
+          acc[parent] = Object.keys(node.partitions);          
+          return acc;
+        }, {});
+
+        computed.source_partitions = source_partitions;
+      } 
+
       const { data, state } = build_data(node, this._styles, computed);
 
       data.name = name;
@@ -270,13 +281,48 @@ Specimen.prototype.animate = function(layout, container) {
   $(container).html($(container).html());
 
   const animations = animation_sequence(layout_index, all_dynamic_data, actions, this._styles);
-  const commands = anime_commands(animations, lineage);
+  const { commands, callbacks } = anime_data(animations, lineage);
 
-  var controlsProgressEl = $(container + " > .controls > .progress");
+  const controlsProgressEl = $(container + " > .controls > .progress");
+
+  // Use a sorted data structure to skip this.
+  callbacks.sort(function(a, b) {
+    if (a.t < b.t) {
+      return -1;
+    } else if (a.t == b.t) {
+      return 0;
+    } else {
+      return 1;
+    }
+  });
+
+  let callback_index = 0;
 
   const timeline = anime.timeline({
     autoplay: false,
     update: function(anim) {
+      const anime_t = anim.currentTime;
+
+      if (!anim.reversePlayback) {
+        if (callback_index < 0) {
+          callback_index = 0;
+        }
+
+        while ((callback_index < callbacks.length) && callbacks[callback_index].t <= anime_t) {
+          callbacks[callback_index].apply();
+          callback_index++;
+        }
+      } else {
+        if (callback_index >= callbacks.length) {
+          callback_index = callbacks.length - 1;
+        }
+
+        while ((callback_index >= 0) && callbacks[callback_index].t >= anime_t) {
+          callbacks[callback_index].undo();
+          callback_index--;
+        }
+      }
+
       controlsProgressEl.val(timeline.progress);
     }
   });
@@ -285,7 +331,7 @@ Specimen.prototype.animate = function(layout, container) {
   $(container + " > .controls > .pause").click(timeline.pause);
   $(container + " > .controls > .restart").click(timeline.restart);
 
-  controlsProgressEl.on('input', function() {
+  controlsProgressEl.on("input", function() {
     timeline.pause();
     timeline.seek(timeline.duration * (controlsProgressEl.val() / 100));
   });
