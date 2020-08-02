@@ -13,7 +13,15 @@ export function build_row_data(row, styles, computed) {
     height: row_height,
     x: row_x,
     y: row_y,
-    fill: row_style.fill
+    fill: row_style.fill,
+    row_data: {
+      collection: row.collection,
+      partition: row.partition,
+      offset: row.offset,
+      t: row.t,
+      key: row.key,
+      value: row.value
+    }
   };
 }
 
@@ -44,7 +52,8 @@ export function build_dynamic_container_data(styles) {
 }
 
 export function build_dynamic_row_data(row, styles, computed) {
-  const { id, derived_id, collection, partition, offset, style: row_style } = row;
+  const { id, derived_id, style: row_style } = row;
+  const { collection, partition, offset, t, key, value } = row;
 
   const { dynamic_target } = styles;
   const { part_height } = styles;
@@ -68,6 +77,9 @@ export function build_dynamic_row_data(row, styles, computed) {
     derived_id,
     collection: collection,
     partition: partition,
-    offset: offset
+    offset: offset,
+    t: t,
+    key: key,
+    value: value
   };
 }

@@ -80,8 +80,9 @@ export function render_partition(data) {
 function render_rows(data) {
   let row_html = "";
   for (const row of data) {
-    const { width, height, x, y, fill } = row;
-    row_html += `<rect width="${width}" height="${height}" x="${x}" y="${y}" class="row" fill="${row.fill}"></rect>`;
+    const { width, height, x, y, fill, row_data } = row;
+    const row_str = JSON.stringify(row_data, null, 4);
+    row_html += `<rect width="${width}" height="${height}" x="${x}" y="${y}" class="row" fill="${row.fill}"><title>${row_str}</title></rect>`;
   }
 
   return row_html;

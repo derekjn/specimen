@@ -1,5 +1,5 @@
 import { build_dynamic_container_data, build_dynamic_row_data } from './components/row';
-import { relative_add, relative_sub } from './util';
+import { select_keys, relative_add, relative_sub } from './util';
 
 export function build_dynamic_elements_data(layout_index, actions, styles) {
   return actions.reduce((all, action) => {
@@ -74,6 +74,7 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
       kind: "transformation",
       data: {
         row: old_row,
+        new_row: new_row,
         processed_by: processed_by,
         consumer_id: dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].id,
         offsets: offsets,
@@ -122,6 +123,14 @@ function update_pq_offsets(processed_by, offsets) {
       }
     });
   });
+}
+
+function update_row_popover(id, row) {
+  const el = document.querySelector(`.row.id-${id} > title`);
+  const row_data = select_keys(row, ["collection", "partition", "offset", "t", "key", "value"]);
+  const row_str = JSON.stringify(row_data, null, 4);
+  el.textContent = row_str;
+
 }
 
 function transformation_animations(change, t, history, lineage) {
@@ -204,13 +213,24 @@ function transformation_animations(change, t, history, lineage) {
     }
   }
 
+  const update_row_summary = {
+    t: (t_offset + intro + entering_motion + crossing_motion),
+    apply: function() {
+      update_row_popover(data.row.id, data.new_row);
+    },
+    undo: function() {
+      update_row_popover(data.row.id, data.row);
+    }
+  }
+
   return {
     commands: [
       row_movement,
       consumer_marker_movement
     ],
     callbacks: [
-      update_offset_text
+      update_offset_text,
+      update_row_summary
     ]
   };
 }
