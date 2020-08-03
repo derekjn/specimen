@@ -301,7 +301,7 @@ Specimen.prototype.animate = function(layout, container) {
   let callback_index = 0;
 
   const timeline = anime.timeline({
-    autoplay: false,
+    autoplay: true,
     update: function(anim) {
       const anime_t = anim.currentTime;
 
@@ -329,9 +329,19 @@ Specimen.prototype.animate = function(layout, container) {
     }
   });
 
+  const seek_ms = this._styles.seek_ms;
+
   $(container + " > .controls > .play").click(timeline.play);
   $(container + " > .controls > .pause").click(timeline.pause);
   $(container + " > .controls > .restart").click(timeline.restart);
+  $(container + " > .controls > .backward").click(function() {
+    timeline.pause();
+    timeline.seek(Math.max(0, timeline.currentTime - seek_ms));
+  });
+  $(container + " > .controls > .forward").click(function () {
+    timeline.pause();
+    timeline.seek(Math.min(timeline.duration, timeline.currentTime + seek_ms));
+  });
 
   controlsProgressEl.on("input", function() {
     timeline.pause();

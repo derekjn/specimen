@@ -49,3 +49,7 @@ export function relative_add(x) {
 export function relative_sub(x) {
   return "-=" + x;
 }
+
+export function ms_for_translate(m, ms) {
+  return (Math.abs(m.translateX || 0) + Math.abs(m.translateY || 0)) * ms;
+}

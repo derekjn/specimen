@@ -99,7 +99,7 @@ function example_5() {
     kind: "persistent_query",
     into: "s3",
     partition_by: function(context, old_row, new_row) {
-      return old_row.value % context.partitions;
+      return old_row.value;
     },
     query_text: [
       "CREATE STREAM s3 AS",

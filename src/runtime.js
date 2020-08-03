@@ -78,7 +78,9 @@ function set_new_collection(new_row, into) {
 
 function set_new_partition(context, new_row, partition_by) {
   if (partition_by) {
-    new_row.partition = partition_by(context, new_row);
+    const key = partition_by(context, new_row);
+    new_row.key = key;
+    new_row.partition = key % context.partitions;
   }
 }
 
@@ -135,7 +137,7 @@ export function run_until_drained(specimen) {
         processed_by: pq,
         old_row: old_row,
         new_row: new_row,
-        offsets: clone_offsets(offsets[pq]),
+        new_offsets: clone_offsets(offsets[pq]),
         old_offsets: old_offsets
       };
 

@@ -13,6 +13,8 @@ export function render_controls(container, data) {
     <button class="play">Play</button>
     <button class="pause">Pause</button>
     <button class="restart">Restart</button>
+    <button class="backward">Manual <</button>
+    <button class="forward">Manual ></button>
     <input class="progress" step="${data.step}" type="range" min="0" max="100" value="${data.start}"/>
 </div>
 `;
