@@ -197,7 +197,7 @@ function render_dynamic_container(data) {
 function render_dynamic_row(data) {
   const { container, width, height, x, y, fill } = data;
   const { id, collection, partition, offset } = data;
-  const row_data = select_keys(data, ["collection", "partition", "offset", "t", "key", "row"]);
+  const row_data = select_keys(data, ["collection", "partition", "offset", "t", "key", "value"]);
   const row_str = JSON.stringify(row_data, null, 4);
 
   const html = `<rect width="${width}" height="${height}" x="${x}" y="${y}" class="row id-${id} collection-${collection} partition-${partition} offset-${offset}" fill="${fill}"><title>${row_str}</title></rect>`;
