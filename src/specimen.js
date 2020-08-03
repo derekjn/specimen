@@ -333,12 +333,25 @@ Specimen.prototype.animate = function(layout, container) {
 
   $(container + " > .controls > .play").click(timeline.play);
   $(container + " > .controls > .pause").click(timeline.pause);
-  $(container + " > .controls > .restart").click(timeline.restart);
+  $(container + " > .controls > .restart").click(function() {
+    if (callback_index >= callbacks.length) {
+      callback_index = callbacks.length - 1;
+    }
+
+    while ((callback_index >= 0) && callbacks[callback_index].t >= 0) {
+      callbacks[callback_index].undo();
+      callback_index--;
+    }
+
+    timeline.restart();
+  });
+
   $(container + " > .controls > .backward").click(function() {
     timeline.pause();
     timeline.seek(Math.max(0, timeline.currentTime - seek_ms));
   });
-  $(container + " > .controls > .forward").click(function () {
+
+  $(container + " > .controls > .forward").click(function() {
     timeline.pause();
     timeline.seek(Math.min(timeline.duration, timeline.currentTime + seek_ms));
   });
