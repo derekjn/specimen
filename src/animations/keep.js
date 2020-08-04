@@ -70,8 +70,11 @@ export function keep_animation_sequence(action, layout_index, dynamic_elements, 
       new_row: new_row,
       processed_by: processed_by,
       consumer_id: dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].id,
+      old_offsets: old_offsets,
       new_offsets: new_offsets,
-      old_offsets: old_offsets
+      old_stream_time: action.old_stream_time,
+      new_stream_time: action.new_stream_time,
+      stream_time_id: pq_data.stream_time.id
     },
     animations: {
       appear: {
@@ -126,6 +129,11 @@ function update_row_popover(id, row) {
   const row_data = select_keys(row, ["collection", "partition", "offset", "t", "key", "value"]);
   const row_str = JSON.stringify(row_data, null, 4);
   el.textContent = row_str;
+}
+
+function update_stream_time_text(stream_time_id, stream_time) {
+  const el = document.getElementById(stream_time_id).lastElementChild;
+  el.textContent = stream_time || "-";
 }
 
 export function keep_animations(change, t, history, lineage) {
@@ -216,7 +224,7 @@ export function keep_animations(change, t, history, lineage) {
         }
       ]
     }
-  }
+  };
 
   const update_offset_text = {
     t: (
@@ -231,7 +239,22 @@ export function keep_animations(change, t, history, lineage) {
     undo: function() {
       update_pq_offsets(data.processed_by, data.old_offsets);
     }
-  }
+  };
+
+  const update_stream_time = {
+    t: (
+      t_offset +
+        appear_ms +
+        move_to_pq_center_ms +
+        approach_pq_ms
+    ),
+    apply: function() {
+      update_stream_time_text(data.stream_time_id, data.new_stream_time);
+    },
+    undo: function() {
+      update_stream_time_text(data.stream_time_id, data.old_stream_time);
+    }
+  };
 
   const update_row_summary = {
     t: (
@@ -247,7 +270,7 @@ export function keep_animations(change, t, history, lineage) {
     undo: function() {
       update_row_popover(data.old_row.id, data.old_row);
     }
-  }
+  };
 
   return {
     commands: [
@@ -256,6 +279,7 @@ export function keep_animations(change, t, history, lineage) {
     ],
     callbacks: [
       update_offset_text,
+      update_stream_time,
       update_row_summary
     ]
   };

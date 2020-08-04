@@ -1,6 +1,21 @@
+import { uuidv4 } from './../util';
 import $ from 'jquery';
 
-function build_source_partition_data(config, left_x, top_y, margin) {
+function build_stream_time_data({ left_x, top_y, margin }) {
+  const y = top_y + margin;
+  return {
+    data: {
+      id: uuidv4(),
+      x: left_x,
+      y: y
+    },
+    state: {
+      bottom_y: y
+    }
+  };
+}
+
+function build_source_partition_data(config, { left_x, top_y, margin }) {
   const partitions = Object.entries(config).reduce((all, [coll, partitions]) => {
     partitions.forEach(partition => {
       const data = {
@@ -32,7 +47,7 @@ export function build_persistent_query_data(config, styles, computed) {
   const { svg_target } = styles;
   const { pq_width, pq_height, pq_margin_top, pq_bracket_len } = styles;
   const { pq_label_margin_left, pq_label_margin_bottom } = styles;
-  const { pq_offsets_offset_top, pq_offsets_margin_top } = styles;
+  const { pq_metadata_offset_top, pq_metadata_margin_top } = styles;
   const { top_y, midpoint_x, source_partitions } = computed;
 
   const this_top_y = top_y + pq_margin_top;
@@ -42,8 +57,20 @@ export function build_persistent_query_data(config, styles, computed) {
   const line_bottom_y = this_top_y - 5;
   const b_len = pq_bracket_len;
 
-  const offsets_top_y = box_bottom_y + pq_offsets_offset_top;
-  const { data: sp_data, state: sp_state } = build_source_partition_data(source_partitions, left_x, offsets_top_y, pq_offsets_margin_top);
+  const metadata_top_y = box_bottom_y + pq_metadata_offset_top;
+  const sp_computed = {
+    left_x: left_x,
+    top_y: metadata_top_y,
+    margin: pq_metadata_margin_top
+  };
+  const { data: sp_data, state: sp_state } = build_source_partition_data(source_partitions, sp_computed);
+
+  const stream_time_computed = {
+    left_x: left_x,
+    top_y: sp_state.bottom_y,
+    margin: pq_metadata_margin_top
+  };
+  const { data: st_data, state: st_state } = build_stream_time_data(stream_time_computed);
 
   return {
     data: {
@@ -65,6 +92,7 @@ export function build_persistent_query_data(config, styles, computed) {
         partitions: sp_data.source_partitions,
         name: name
       },
+      stream_time: st_data,
       target: svg_target,
       brackets: {
         tl: {
@@ -93,10 +121,10 @@ export function build_persistent_query_data(config, styles, computed) {
         }
       },
       midpoint_y: box_bottom_y - (pq_height / 2),
-      bottom_y: sp_state.bottom_y
+      bottom_y: st_state.bottom_y
     },
     state: {
-      bottom_y: sp_state.bottom_y
+      bottom_y: st_state.bottom_y
     }
   };
 }
@@ -112,11 +140,18 @@ function source_partitions_html({ partitions, name }) {
   return html;
 }
 
+function stream_time_html({ id, x, y }) {
+  return `
+<text id="${id}" x="${x}" y="${y}" class="code">Stream time: <tspan>-</tspan></text>
+`;
+}
+
 export function render_persistent_query(data) {
-  const { line, brackets, label, source_partitions, target } = data;
+  const { line, brackets, label, source_partitions, stream_time, target } = data;
   const { tl, tr, bl, br } = brackets;
 
   const source_partitions_markup = source_partitions_html(source_partitions);
+  const stream_time_markup = stream_time_html(stream_time);
 
   const html = `
 <g class="persistent-query-container">
@@ -129,6 +164,7 @@ export function render_persistent_query(data) {
 
     <text x="${label.x}" y ="${label.y}" class="code">${label.name}</text>
     ${source_partitions_markup}
+    ${stream_time_markup}
 </g>`;
 
   $("." + target).append(html);

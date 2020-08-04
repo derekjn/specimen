@@ -35,27 +35,27 @@ function example_5() {
     kind: "collection",
     partitions: {
       0: [
-        { value: 40, t: 2 },
-        { value: 41, t: 4 },
-        { value: 42, t: 7 }
+        { value: 40, t: 22 },
+        { value: 41, t: 45 },
+        { value: 42, t: 73 }
       ],
       1: [
-        { value: 42, t: 1 },
-        { value: 43, t: 3 },
-        { value: 41, t: 5 },
-        { value: 40, t: 6 }
+        { value: 42, t: 11 },
+        { value: 43, t: 38 },
+        { value: 41, t: 57 },
+        { value: 40, t: 60 }
       ],
       2: [
-        { value: 41, t: 2 },
-        { value: 42, t: 4 },
-        { value: 43, t: 6 }
+        { value: 41, t: 24 },
+        { value: 42, t: 43 },
+        { value: 43, t: 67 }
       ],
       3: [
-        { value: 43, t: 1 },
-        { value: 40, t: 3 },
-        { value: 40, t: 4 },
-        { value: 42, t: 5 },
-        { value: 41, t: 5 }
+        { value: 43, t: 19 },
+        { value: 40, t: 38 },
+        { value: 40, t: 42 },
+        { value: 42, t: 55 },
+        { value: 41, t: 53 }
       ]
     }
   });

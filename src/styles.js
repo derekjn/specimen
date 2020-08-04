@@ -11,8 +11,8 @@ export const styles = {
   pq_bracket_len: 15,
   pq_label_margin_left: 0,
   pq_label_margin_bottom: 10,
-  pq_offsets_offset_top: 20,
-  pq_offsets_margin_top: 15,
+  pq_metadata_offset_top: 20,
+  pq_metadata_margin_top: 15,
 
   coll_padding_top: 10,
   coll_margin_bottom: 10,

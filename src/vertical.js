@@ -86,6 +86,8 @@ function persistent_query_translate_y(data, height) {
   data.source_partitions.partitions.forEach(partition => {
     partition.y += height;
   });
+
+  data.stream_time.y += height;
   
   return data;
 }

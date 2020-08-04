@@ -89,6 +89,21 @@ function clone_offsets(m) {
     .reduce((acc, [k, v])=> (acc[k]={...v}, acc), {});
 }
 
+function initialize_stream_time(pqs) {
+  return pqs.reduce((all, pq) => {
+    all[pq] = undefined;
+    return all;
+  }, {});
+}
+
+function update_stream_time(stream_time, pq, t) {
+  const st = stream_time[pq];
+
+  if ((st == undefined) || (t > st)) {
+    stream_time[pq] = t;
+  }
+}
+
 export function run_until_drained(specimen) {
   const kinds = specimen.node_kinds();
   const colls = kinds.collection;
@@ -100,6 +115,7 @@ export function run_until_drained(specimen) {
   let actions = [];
   let lineage = {};
   let offsets = initialize_offsets(specimen, pq_seq, colls);
+  let stream_time = initialize_stream_time(pq_seq);
 
   while (!is_drained(non_sinks, offsets)) {
     const pq = pq_seq[0];
@@ -108,6 +124,7 @@ export function run_until_drained(specimen) {
     
     const old_row = choose_lowest_timestamp(parent_colls, offsets[pq]);
     const old_offsets = clone_offsets(offsets[pq]);
+    const old_stream_time = stream_time[pq];
 
     if (old_row) {
       const { into, partition_by } = pqs[pq];
@@ -124,6 +141,7 @@ export function run_until_drained(specimen) {
       new_row.derived_id = old_row.id;
 
       swap_partitions(pq, colls, offsets, old_row, new_row);
+      update_stream_time(stream_time, pq, old_row.t);
 
       if (old_row.derived_id) {
         lineage[old_row.id] = old_row.derived_id;
@@ -138,7 +156,9 @@ export function run_until_drained(specimen) {
         old_row: old_row,
         new_row: new_row,
         new_offsets: clone_offsets(offsets[pq]),
-        old_offsets: old_offsets
+        old_offsets: old_offsets,
+        old_stream_time: old_stream_time,
+        new_stream_time: stream_time[pq]
       };
 
       actions.push(action);
