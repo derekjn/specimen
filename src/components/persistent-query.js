@@ -120,6 +120,7 @@ export function build_persistent_query_data(config, styles, computed) {
           h: -b_len
         }
       },
+      midpoint_x: midpoint_x,
       midpoint_y: box_bottom_y - (pq_height / 2),
       bottom_y: st_state.bottom_y
     },

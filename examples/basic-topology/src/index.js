@@ -68,8 +68,12 @@ function example_5() {
       "CREATE STREAM s2 AS",
       "  SELECT col1, FLOOR(col2) AS f",
       "  FROM s1",
+      "  WHERE col3 != 'foo'",
       "  EMIT CHANGES;"
     ],
+    where: function(context, row) {
+      return row.value != 41 && row.value != 42;
+    },
     style: {
       fill: function(old_row, new_row) {
         const flavors = [

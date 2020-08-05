@@ -1,4 +1,5 @@
-import { select_keys, relative_add, relative_sub, ms_for_translate } from './../util';
+import { relative_add, relative_sub, ms_for_translate } from './../util';
+import { update_pq_offsets, update_row_popover, update_stream_time_text } from './common';
 
 export function keep_animation_sequence(action, layout_index, dynamic_elements, styles) {
   const { old_row, new_row, processed_by, new_offsets, old_offsets } = action;
@@ -107,33 +108,6 @@ export function keep_animation_sequence(action, layout_index, dynamic_elements, 
       }
     }
   };
-}
-
-function update_pq_offsets(processed_by, offsets) {
-  Object.entries(offsets).forEach(([ collection, partitions] ) => {
-    Object.entries(partitions).forEach(([ partition, offset ]) => {
-      const el = document.querySelector(`.collection-${collection}.partition-${partition}.pq-${processed_by}`);
-      const last_offset = offset - 1;
-
-      if (last_offset < 0) {
-        el.lastChild.textContent = "-";
-      } else {
-        el.lastChild.textContent = last_offset;
-      }
-    });
-  });
-}
-
-function update_row_popover(id, row) {
-  const el = document.querySelector(`.row.id-${id} > title`);
-  const row_data = select_keys(row, ["collection", "partition", "offset", "t", "key", "value"]);
-  const row_str = JSON.stringify(row_data, null, 4);
-  el.textContent = row_str;
-}
-
-function update_stream_time_text(stream_time_id, stream_time) {
-  const el = document.getElementById(stream_time_id).lastElementChild;
-  el.textContent = stream_time || "-";
 }
 
 export function keep_animations(change, t, history, lineage) {

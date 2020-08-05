@@ -301,7 +301,7 @@ Specimen.prototype.animate = function(layout, container) {
   let callback_index = 0;
 
   const timeline = anime.timeline({
-    autoplay: true,
+    autoplay: false,
     update: function(anim) {
       const anime_t = anim.currentTime;
 

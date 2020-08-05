@@ -104,6 +104,73 @@ function update_stream_time(stream_time, pq, t) {
   }
 }
 
+function evaluate_select(runtime_context, query_context, query_parts, old_row) {
+  const { colls, offsets, stream_time, lineage, pq } = runtime_context;
+  const { into, partition_by } = query_parts;
+
+  const old_offsets = clone_offsets(offsets[pq]);
+  const old_stream_time = stream_time[pq];
+
+  const new_row = { ...old_row };
+
+  set_new_collection(new_row, into);
+  set_new_partition(query_context, new_row, partition_by);
+
+  old_row.id = uuidv4();
+  new_row.derived_id = old_row.id;
+
+  swap_partitions(pq, colls, offsets, old_row, new_row);
+  update_stream_time(stream_time, pq, old_row.t);
+
+  if (old_row.derived_id) {
+    lineage[old_row.id] = old_row.derived_id;
+  } else {
+    old_row.derived_id = old_row.source_id;
+  }
+
+  return {
+    kind: "keep",
+    from: old_row.collection,
+    to: new_row.collection,
+    processed_by: pq,
+    old_row: old_row,
+    new_row: new_row,
+    new_offsets: clone_offsets(offsets[pq]),
+    old_offsets: old_offsets,
+    old_stream_time: old_stream_time,
+    new_stream_time: stream_time[pq]
+  };
+}
+
+function execute_filter(runtime_context, query_context, query_parts, old_row) {
+  const { offsets, stream_time, pq } = runtime_context;
+
+  const old_offsets = clone_offsets(offsets[pq]);
+  const old_stream_time = stream_time[pq];
+
+  old_row.id = uuidv4();
+  offsets[pq][old_row.collection][old_row.partition]++;
+  update_stream_time(stream_time, pq, old_row.t);
+
+  if (old_row.derived_id) {
+    lineage[old_row.id] = old_row.derived_id;
+  } else {
+    old_row.derived_id = old_row.source_id;
+  }
+
+
+  return {
+    kind: "discard",
+    old_row: old_row,
+    from: old_row.collection,
+    processed_by: pq,
+    new_offsets: clone_offsets(offsets[pq]),
+    old_offsets: old_offsets,
+    old_stream_time: old_stream_time,
+    new_stream_time: stream_time[pq]
+  };
+}
+
 export function run_until_drained(specimen) {
   const kinds = specimen.node_kinds();
   const colls = kinds.collection;
@@ -120,48 +187,31 @@ export function run_until_drained(specimen) {
   while (!is_drained(non_sinks, offsets)) {
     const pq = pq_seq[0];
     const parents = specimen.parents(pq);
-    const parent_colls = select_keys(colls, parents);
-    
+    const parent_colls = select_keys(colls, parents);    
     const old_row = choose_lowest_timestamp(parent_colls, offsets[pq]);
-    const old_offsets = clone_offsets(offsets[pq]);
-    const old_stream_time = stream_time[pq];
+    const runtime_context = {
+      pq, colls, offsets, stream_time, lineage
+    };
 
     if (old_row) {
-      const { into, partition_by } = pqs[pq];
-      const new_row = { ...old_row };
-
-      const context = {
+      const query_parts = pqs[pq];
+      const { into, where, partition_by } = query_parts;
+      const query_context = {
         partitions: Object.keys(colls[into].partitions).length
       };
 
-      set_new_collection(new_row, into);
-      set_new_partition(context, new_row, partition_by);
-
-      old_row.id = uuidv4();
-      new_row.derived_id = old_row.id;
-
-      swap_partitions(pq, colls, offsets, old_row, new_row);
-      update_stream_time(stream_time, pq, old_row.t);
-
-      if (old_row.derived_id) {
-        lineage[old_row.id] = old_row.derived_id;
+      if (where) {
+        if (where(query_context, old_row)) {
+          const action = evaluate_select(runtime_context, query_context, query_parts, old_row);
+          actions.push(action);
+        } else {
+          const action = execute_filter(runtime_context, query_context, query_parts, old_row);
+          actions.push(action);
+        }
       } else {
-        old_row.derived_id = old_row.source_id;
+        const action = evaluate_select(runtime_context, query_context, query_parts, old_row);
+        actions.push(action);
       }
-
-      const action = {
-        from: old_row.collection,
-        to: new_row.collection,
-        processed_by: pq,
-        old_row: old_row,
-        new_row: new_row,
-        new_offsets: clone_offsets(offsets[pq]),
-        old_offsets: old_offsets,
-        old_stream_time: old_stream_time,
-        new_stream_time: stream_time[pq]
-      };
-
-      actions.push(action);
     }
     
     pq_seq = cycle_array(pq_seq);
