@@ -35,7 +35,7 @@ export function animation_sequence(layout_index, dynamic_elements, actions, styl
   return seq;
 }
 
-export function anime_data(seq, lineage) {
+export function anime_data(seq, lineage, styles) {
   const ms_px = 3;
   const animation_fns = {
     "keep": keep_animations,
@@ -51,7 +51,7 @@ export function anime_data(seq, lineage) {
 
   seq.forEach((change) => {
     const fn = animation_fns[change.kind];
-    const { commands: cmds, callbacks: cbs } = fn(change, t, history, lineage);
+    const { commands: cmds, callbacks: cbs } = fn(change, t, history, lineage, styles);
 
     cmds.forEach(cmd => {
       result.commands.push(cmd);

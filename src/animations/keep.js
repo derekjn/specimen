@@ -110,9 +110,9 @@ export function keep_animation_sequence(action, layout_index, dynamic_elements, 
   };
 }
 
-export function keep_animations(change, t, history, lineage) {
+export function keep_animations(change, t, history, lineage, styles) {
   const { data, animations } = change;
-  const ms_px = 2;
+  const { ms_px } = styles;
 
   const pq_t = (t[data.processed_by] || 0);
   const row_history = (history[lineage[data.old_row.id]] || 0);

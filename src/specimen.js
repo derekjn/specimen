@@ -283,7 +283,7 @@ Specimen.prototype.animate = function(layout, container) {
   $(container).html($(container).html());
 
   const animations = animation_sequence(layout_index, all_dynamic_data, actions, this._styles);
-  const { commands, callbacks } = anime_data(animations, lineage);
+  const { commands, callbacks } = anime_data(animations, lineage, this._styles);
 
   const controlsProgressEl = $(container + " > .controls > .progress");
 

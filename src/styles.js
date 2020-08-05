@@ -43,5 +43,6 @@ export const styles = {
   consumer_m_margin_bottom: 10,
   consumer_m_margin_right: 3,
 
-  seek_ms: 25
+  seek_ms: 25,
+  ms_px: 2
 };
