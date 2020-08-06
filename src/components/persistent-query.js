@@ -1,19 +1,42 @@
 import { uuidv4 } from './../util';
 import $ from 'jquery';
 
-function build_stream_time_data({ left_x, top_y, margin }) {
-  const y = top_y + margin;
-  return {
-    data: {
-      id: uuidv4(),
-      x: left_x,
-      y: y
-    },
-    state: {
-      bottom_y: y
+
+{
+  data: {
+    kind: "persistent_query",
+    id: uuid,
+    rendering: {
+      line: {
+      },
+      label: {
+      },
+      brackets: {
+      },
+      stream_time: {
+        kind: "stream_time_clock",
+      }
     }
-  };
+    refs: {
+      box: {
+        top_left: ?,
+        top_right: ?,
+        bottom_left: ?,
+        bottom_right: ?
+      },
+      midpoint_x: ?,
+      midpoint_y: ?
+    },
+    vars: {
+      query_text: ?
+    }
+  },
+  state: {
+  }
 }
+
+
+
 
 function build_source_partition_data(config, { left_x, top_y, margin }) {
   const partitions = Object.entries(config).reduce((all, [coll, partitions]) => {
