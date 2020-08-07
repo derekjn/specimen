@@ -15,7 +15,7 @@ export function build_data(computed) {
     vars: {
       label: "Stream time: ",
       init: "-"
-    }
+    },
     refs: {
       bottom_y: bottom_y
     }

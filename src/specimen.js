@@ -11,355 +11,358 @@ import {
   relative_add,
 } from './util';
 import { build_collection_data, render_collection } from './components/collection';
-import { build_persistent_query_data } from './components/persistent-query';
 import { vertically_center_layout } from "./vertical";
 import { build_controls_data, render_controls } from './components/controls';
 import { build_svg_data, render_svg } from './components/svg';
-import { render_persistent_query } from './components/persistent-query';
 import { build_dynamic_container_data } from './components/row';
 import { build_consumer_markers_data, render_consumer_marker } from './components/consumer-marker';
 import { render_query_text } from './query-text';
 import { run_until_drained } from './runtime';
 import { build_dynamic_elements_data, animation_sequence, anime_data } from './animate';
 
+
+import * as stream from './components/stream';
+import * as pq from './components/persistent-query2';
+
+
 import { styles } from './styles';
 
 function build_data(node, styles, computed) {
   switch(node.kind) {
-  case "collection":
-    return build_collection_data(node, styles, computed);
+  case "stream":
+    return stream.build_data(node, styles, computed);
 
   case "persistent_query":
-    return build_persistent_query_data(node, styles, computed);
+    return pq.build_data(node, styles, computed);
   }
 }
 
-function add_metadata(component, styles) {
-  const { row_default_fill } = styles;
+// function add_metadata(component, styles) {
+//   const { row_default_fill } = styles;
   
-  switch(component.kind) {
-  case "collection":
-    Object.entries(component.partitions).forEach(([id, partition]) => {
-      partition.forEach((row, i) => {
-        row.source_id = uuidv4();
-        row.collection = component.name;
-        row.partition = id;
-        row.offset = i;
-        row.style = { ...{ fill: row_default_fill }, ...row.style };
-      });
-    });
+//   switch(component.kind) {
+//   case "collection":
+//     Object.entries(component.partitions).forEach(([id, partition]) => {
+//       partition.forEach((row, i) => {
+//         row.source_id = uuidv4();
+//         row.collection = component.name;
+//         row.partition = id;
+//         row.offset = i;
+//         row.style = { ...{ fill: row_default_fill }, ...row.style };
+//       });
+//     });
 
-    return component;
-  default:
-    return component;
-  }
-}
+//     return component;
+//   default:
+//     return component;
+//   }
+// }
 
 export function Specimen(styles) {
   this._graph = new graphlib.Graph();
   this._styles = styles;
 }
 
-Specimen.prototype.add_root = function(node) {
-  this._graph.setNode(node.name, add_metadata(node, this._styles));
-  return this;
-}
+// Specimen.prototype.add_root = function(node) {
+//   this._graph.setNode(node.name, add_metadata(node, this._styles));
+//   return this;
+// }
 
-Specimen.prototype.add_child = function(parents, node) {
-  this._graph.setNode(node.name, add_metadata(node, this._styles));
+// Specimen.prototype.add_child = function(parents, node) {
+//   this._graph.setNode(node.name, add_metadata(node, this._styles));
 
-  parents.forEach(parent => {
-    this._graph.setEdge(parent, node.name);
-  });
+//   parents.forEach(parent => {
+//     this._graph.setEdge(parent, node.name);
+//   });
 
-  return this;
-}
+//   return this;
+// }
 
-Specimen.prototype.get_node = function(name) {
-  return this._graph.node(name);
-}
+// Specimen.prototype.get_node = function(name) {
+//   return this._graph.node(name);
+// }
 
-Specimen.prototype.node_kinds = function() {
-  const nodes = this._graph.nodes();
-  const vals = nodes.map(node => {
-    return this._graph.node(node);
-  });
+// Specimen.prototype.node_kinds = function() {
+//   const nodes = this._graph.nodes();
+//   const vals = nodes.map(node => {
+//     return this._graph.node(node);
+//   });
   
-  return vals.reduce((all, node) => {
-    let group = all[node.kind] || {};
-    group[node.name] = node;
-    all[node.kind] = group;
+//   return vals.reduce((all, node) => {
+//     let group = all[node.kind] || {};
+//     group[node.name] = node;
+//     all[node.kind] = group;
 
-    return all;
-  }, {});
-}
+//     return all;
+//   }, {});
+// }
 
-Specimen.prototype.source_collections = function() {
-  return this._graph.sources();
-}
+// Specimen.prototype.source_collections = function() {
+//   return this._graph.sources();
+// }
 
-Specimen.prototype.sink_collections = function() {
-  return this._graph.sinks();
-}
+// Specimen.prototype.sink_collections = function() {
+//   return this._graph.sinks();
+// }
 
-Specimen.prototype.parents = function(name) {
-  return this._graph.predecessors(name);
-}
+// Specimen.prototype.parents = function(name) {
+//   return this._graph.predecessors(name);
+// }
 
-Specimen.prototype.children = function(name) {
-  return this._graph.successors(name);
-}
+// Specimen.prototype.children = function(name) {
+//   return this._graph.successors(name);
+// }
 
-Specimen.prototype.layout_buckets = function() {
-  let index = {};
-  const seq = graphlib.alg.topsort(this._graph);
+// Specimen.prototype.layout_buckets = function() {
+//   let index = {};
+//   const seq = graphlib.alg.topsort(this._graph);
 
-  seq.forEach(x => {
-    const parents = this._graph.predecessors(x);
+//   seq.forEach(x => {
+//     const parents = this._graph.predecessors(x);
 
-    if (parents.length == 0) {
-      index[x] = 0;
-    } else {
-      const parent_indices = parents.reduce((o, k) => {
-        o[k] = index[k];
-        return o;
-      }, {});
+//     if (parents.length == 0) {
+//       index[x] = 0;
+//     } else {
+//       const parent_indices = parents.reduce((o, k) => {
+//         o[k] = index[k];
+//         return o;
+//       }, {});
 
-      const max_parent = Math.max(...Object.values(parent_indices));
+//       const max_parent = Math.max(...Object.values(parent_indices));
 
-      index[x] = max_parent + 1;
-    }
-  });
+//       index[x] = max_parent + 1;
+//     }
+//   });
 
-  return inverse_map(index);
-}
+//   return inverse_map(index);
+// }
 
-Specimen.prototype.horizontal_layout = function() {
-  const { svg_width } = this._styles;
+// Specimen.prototype.horizontal_layout = function() {
+//   const { svg_width } = this._styles;
 
-  const buckets = this.layout_buckets();
-  const n = Object.keys(buckets).length;
-  const column_width = (svg_width / n);
+//   const buckets = this.layout_buckets();
+//   const n = Object.keys(buckets).length;
+//   const column_width = (svg_width / n);
 
-  const layout = Object.entries(buckets).reduce((all, pair) => {
-    const [i, names] = pair;
-    const midpoint_x = (i * column_width) + (column_width / 2);
+//   const layout = Object.entries(buckets).reduce((all, pair) => {
+//     const [i, names] = pair;
+//     const midpoint_x = (i * column_width) + (column_width / 2);
 
-    let result = []
-    let top_y = 0;
+//     let result = []
+//     let top_y = 0;
 
-    names.sort().forEach(name => {
-      const node = this._graph.node(name);
-      const computed = { top_y: top_y, midpoint_x: midpoint_x };
+//     names.sort().forEach(name => {
+//       const node = this._graph.node(name);
+//       const computed = { top_y: top_y, midpoint_x: midpoint_x };
 
-      if (node.kind == "persistent_query") {
-        const source_partitions = this.parents(node.name).reduce((acc, parent) => {
-          const node = this.get_node(parent);
-          acc[parent] = Object.keys(node.partitions);          
-          return acc;
-        }, {});
+//       if (node.kind == "persistent_query") {
+//         const source_partitions = this.parents(node.name).reduce((acc, parent) => {
+//           const node = this.get_node(parent);
+//           acc[parent] = Object.keys(node.partitions);          
+//           return acc;
+//         }, {});
 
-        computed.source_partitions = source_partitions;
-      } 
+//         computed.source_partitions = source_partitions;
+//       } 
 
-      const { data, state } = build_data(node, this._styles, computed);
+//       const { data, state } = build_data(node, this._styles, computed);
 
-      data.name = name;
-      top_y = state.bottom_y;
-      result.push(data)
-    });
+//       data.name = name;
+//       top_y = state.bottom_y;
+//       result.push(data)
+//     });
 
-    all.push(result);
-    return all;
-  }, []);
+//     all.push(result);
+//     return all;
+//   }, []);
 
-  return vertically_center_layout(layout).flatMap(xs => xs);
-}
+//   return vertically_center_layout(layout).flatMap(xs => xs);
+// }
 
-function render(data) {
-  switch(data.kind) {
-  case "collection":
-    render_collection(data);
-    break;
-  case "persistent_query":
-    render_persistent_query(data);
-    break;
-  }
-}
+// function render(data) {
+//   switch(data.kind) {
+//   case "collection":
+//     render_collection(data);
+//     break;
+//   case "persistent_query":
+//     render_persistent_query(data);
+//     break;
+//   }
+// }
 
-function render_dynamic_container(data) {
-  const { container, dynamic_target } = data;
+// function render_dynamic_container(data) {
+//   const { container, dynamic_target } = data;
 
-  const html = `<g class="${dynamic_target}"></g>`;
-  $("." + container).append(html);
-}
+//   const html = `<g class="${dynamic_target}"></g>`;
+//   $("." + container).append(html);
+// }
 
-function render_dynamic_row(data) {
-  const { container, width, height, x, y, fill } = data;
-  const { id, collection, partition, offset } = data;
-  const row_data = select_keys(data, ["collection", "partition", "offset", "t", "key", "value"]);
-  const row_str = JSON.stringify(row_data, null, 4);
+// function render_dynamic_row(data) {
+//   const { container, width, height, x, y, fill } = data;
+//   const { id, collection, partition, offset } = data;
+//   const row_data = select_keys(data, ["collection", "partition", "offset", "t", "key", "value"]);
+//   const row_str = JSON.stringify(row_data, null, 4);
 
-  const html = `<rect width="${width}" height="${height}" x="${x}" y="${y}" class="row id-${id} collection-${collection} partition-${partition} offset-${offset}" fill="${fill}"><title>${row_str}</title></rect>`;
+//   const html = `<rect width="${width}" height="${height}" x="${x}" y="${y}" class="row id-${id} collection-${collection} partition-${partition} offset-${offset}" fill="${fill}"><title>${row_str}</title></rect>`;
 
-  $("." + container).append(html);  
-}
+//   $("." + container).append(html);  
+// }
 
-Specimen.prototype.render = function(layout, container) {
-  const controls_data = build_controls_data(this._styles);
-  render_controls(container, controls_data);
+// Specimen.prototype.render = function(layout, container) {
+//   const controls_data = build_controls_data(this._styles);
+//   render_controls(container, controls_data);
 
-  const { svg_width } = this._styles;
-  const svg_data = build_svg_data(this._styles);
-  render_svg(container, svg_data);
+//   const { svg_width } = this._styles;
+//   const svg_data = build_svg_data(this._styles);
+//   render_svg(container, svg_data);
 
-  layout.forEach(data => render(data));
-  render_query_text(layout, this._styles.svg_target, this._styles.svg_width);
+//   layout.forEach(data => render(data));
+//   render_query_text(layout, this._styles.svg_target, this._styles.svg_width);
 
-  // Repaint.
-  $(container).html($(container).html());
-}
+//   // Repaint.
+//   $(container).html($(container).html());
+// }
 
-Specimen.prototype.consumer_graph = function() {
-  const kinds = this.node_kinds();
-  const pqs = Object.keys(kinds.persistent_query);
+// Specimen.prototype.consumer_graph = function() {
+//   const kinds = this.node_kinds();
+//   const pqs = Object.keys(kinds.persistent_query);
 
-  return Object.entries(kinds.collection).reduce((all, [name, { partitions }]) => {
-    const children = this.children(name);
-    const child_pqs = children.filter(child => pqs.includes(child));
+//   return Object.entries(kinds.collection).reduce((all, [name, { partitions }]) => {
+//     const children = this.children(name);
+//     const child_pqs = children.filter(child => pqs.includes(child));
 
-    all[name] = Object.keys(partitions).reduce((parts, part) => {
-      parts[part] = child_pqs;
-      return parts;
-    }, {});
+//     all[name] = Object.keys(partitions).reduce((parts, part) => {
+//       parts[part] = child_pqs;
+//       return parts;
+//     }, {});
 
-    return all;
-  }, {});
-}
+//     return all;
+//   }, {});
+// }
 
-Specimen.prototype.static_row_index = function(layout_index) {
-  const sources = this.source_collections();
-  let result = {};
+// Specimen.prototype.static_row_index = function(layout_index) {
+//   const sources = this.source_collections();
+//   let result = {};
 
-  sources.forEach(source => {
-    layout_index[source].partitions.forEach(partition => {
-      partition.rows.forEach(row => {
-        result[row.source_id] = row;
-      });
-    });
-  });
+//   sources.forEach(source => {
+//     layout_index[source].partitions.forEach(partition => {
+//       partition.rows.forEach(row => {
+//         result[row.source_id] = row;
+//       });
+//     });
+//   });
 
-  return result;
-}
+//   return result;
+// }
 
-Specimen.prototype.animate = function(layout, container) {
-  const layout_index = index_by_name(layout);
-  const consumer_graph = this.consumer_graph();
-  const static_row_index = this.static_row_index(layout_index);
+// Specimen.prototype.animate = function(layout, container) {
+//   const layout_index = index_by_name(layout);
+//   const consumer_graph = this.consumer_graph();
+//   const static_row_index = this.static_row_index(layout_index);
 
-  const { actions, lineage } = run_until_drained(this);
+//   const { actions, lineage } = run_until_drained(this);
 
-  const dynamic_container_data = build_dynamic_container_data(this._styles);
-  const dynamic_data = build_dynamic_elements_data(layout_index, actions, this._styles);
-  const consumer_markers = build_consumer_markers_data(layout_index, consumer_graph, this._styles);
+//   const dynamic_container_data = build_dynamic_container_data(this._styles);
+//   const dynamic_data = build_dynamic_elements_data(layout_index, actions, this._styles);
+//   const consumer_markers = build_consumer_markers_data(layout_index, consumer_graph, this._styles);
 
-  render_dynamic_container(dynamic_container_data);
-  Object.values(dynamic_data).forEach(data => render_dynamic_row(data));
+//   render_dynamic_container(dynamic_container_data);
+//   Object.values(dynamic_data).forEach(data => render_dynamic_row(data));
 
-  const all_dynamic_data = { ...dynamic_data,
-                             ...static_row_index,
-                             ...{
-                               consumer_markers: consumer_markers
-                             }};
+//   const all_dynamic_data = { ...dynamic_data,
+//                              ...static_row_index,
+//                              ...{
+//                                consumer_markers: consumer_markers
+//                              }};
 
-  Object.entries(consumer_markers).forEach(([coll, partitions]) => {
-    Object.entries(partitions).forEach(([partition, pqs]) => {
-      Object.entries(pqs).forEach(([pq, data]) => {
-        render_consumer_marker(data);
-      });
-    });
-  });
+//   Object.entries(consumer_markers).forEach(([coll, partitions]) => {
+//     Object.entries(partitions).forEach(([partition, pqs]) => {
+//       Object.entries(pqs).forEach(([pq, data]) => {
+//         render_consumer_marker(data);
+//       });
+//     });
+//   });
 
-  $(container).html($(container).html());
+//   $(container).html($(container).html());
 
-  const animations = animation_sequence(layout_index, all_dynamic_data, actions, this._styles);
-  const { commands, callbacks } = anime_data(animations, lineage, this._styles);
+//   const animations = animation_sequence(layout_index, all_dynamic_data, actions, this._styles);
+//   const { commands, callbacks } = anime_data(animations, lineage, this._styles);
 
-  const controlsProgressEl = $(container + " > .controls > .progress");
+//   const controlsProgressEl = $(container + " > .controls > .progress");
 
-  // Use a sorted data structure to skip this.
-  callbacks.sort(function(a, b) {
-    if (a.t < b.t) {
-      return -1;
-    } else if (a.t == b.t) {
-      return 0;
-    } else {
-      return 1;
-    }
-  });
+//   // Use a sorted data structure to skip this.
+//   callbacks.sort(function(a, b) {
+//     if (a.t < b.t) {
+//       return -1;
+//     } else if (a.t == b.t) {
+//       return 0;
+//     } else {
+//       return 1;
+//     }
+//   });
 
-  let callback_index = 0;
+//   let callback_index = 0;
 
-  const timeline = anime.timeline({
-    autoplay: false,
-    update: function(anim) {
-      const anime_t = anim.currentTime;
+//   const timeline = anime.timeline({
+//     autoplay: false,
+//     update: function(anim) {
+//       const anime_t = anim.currentTime;
 
-      if (!anim.reversePlayback) {
-        if (callback_index < 0) {
-          callback_index = 0;
-        }
+//       if (!anim.reversePlayback) {
+//         if (callback_index < 0) {
+//           callback_index = 0;
+//         }
 
-        while ((callback_index < callbacks.length) && callbacks[callback_index].t <= anime_t) {
-          callbacks[callback_index].apply();
-          callback_index++;
-        }
-      } else {
-        if (callback_index >= callbacks.length) {
-          callback_index = callbacks.length - 1;
-        }
+//         while ((callback_index < callbacks.length) && callbacks[callback_index].t <= anime_t) {
+//           callbacks[callback_index].apply();
+//           callback_index++;
+//         }
+//       } else {
+//         if (callback_index >= callbacks.length) {
+//           callback_index = callbacks.length - 1;
+//         }
 
-        while ((callback_index >= 0) && callbacks[callback_index].t >= anime_t) {
-          callbacks[callback_index].undo();
-          callback_index--;
-        }
-      }
+//         while ((callback_index >= 0) && callbacks[callback_index].t >= anime_t) {
+//           callbacks[callback_index].undo();
+//           callback_index--;
+//         }
+//       }
 
-      controlsProgressEl.val(timeline.progress);
-    }
-  });
+//       controlsProgressEl.val(timeline.progress);
+//     }
+//   });
 
-  const seek_ms = this._styles.seek_ms;
+//   const seek_ms = this._styles.seek_ms;
 
-  $(container + " > .controls > .play").click(timeline.play);
-  $(container + " > .controls > .pause").click(timeline.pause);
-  $(container + " > .controls > .restart").click(function() {
-    if (callback_index >= callbacks.length) {
-      callback_index = callbacks.length - 1;
-    }
+//   $(container + " > .controls > .play").click(timeline.play);
+//   $(container + " > .controls > .pause").click(timeline.pause);
+//   $(container + " > .controls > .restart").click(function() {
+//     if (callback_index >= callbacks.length) {
+//       callback_index = callbacks.length - 1;
+//     }
 
-    while ((callback_index >= 0) && callbacks[callback_index].t >= 0) {
-      callbacks[callback_index].undo();
-      callback_index--;
-    }
+//     while ((callback_index >= 0) && callbacks[callback_index].t >= 0) {
+//       callbacks[callback_index].undo();
+//       callback_index--;
+//     }
 
-    timeline.restart();
-  });
+//     timeline.restart();
+//   });
 
-  $(container + " > .controls > .backward").click(function() {
-    timeline.pause();
-    timeline.seek(Math.max(0, timeline.currentTime - seek_ms));
-  });
+//   $(container + " > .controls > .backward").click(function() {
+//     timeline.pause();
+//     timeline.seek(Math.max(0, timeline.currentTime - seek_ms));
+//   });
 
-  $(container + " > .controls > .forward").click(function() {
-    timeline.pause();
-    timeline.seek(Math.min(timeline.duration, timeline.currentTime + seek_ms));
-  });
+//   $(container + " > .controls > .forward").click(function() {
+//     timeline.pause();
+//     timeline.seek(Math.min(timeline.duration, timeline.currentTime + seek_ms));
+//   });
 
-  controlsProgressEl.on("input", function() {
-    timeline.pause();
-    timeline.seek(timeline.duration * (controlsProgressEl.val() / 100));
-  });
+//   controlsProgressEl.on("input", function() {
+//     timeline.pause();
+//     timeline.seek(timeline.duration * (controlsProgressEl.val() / 100));
+//   });
 
-  commands.forEach(c => timeline.add(c.params, c.t));
-}
+//   commands.forEach(c => timeline.add(c.params, c.t));
+// }

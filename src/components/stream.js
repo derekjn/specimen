@@ -1,51 +1,48 @@
+import * as p from './partition2';
 import * as sl from './stream-label';
 import { uuidv4 } from './../util';
 
-function build_partitions_data(partitions, top_y, midpoint_x) {
-  let result = [];
-  
-  for (const [partition, rows] of Object.entries(partitions)) {
-    const part_computed = {
-      part: partition,
-      top_y: top_y,
-      midpoint_x: midpoint_x,
-    };
-
-    const part_data = build_partition_data(name, rows, styles, part_computed);
-    partitions_result.push(part_data);
-    top_y += (part_height + part_margin_bottom);
-  }
-
-  return result;
-}
-
 export function build_data(config, styles, computed) {
   const { name, partitions } = config;
-
+  const { coll_padding_top, coll_margin_bottom, coll_label_margin_bottom } = styles;
+  const { part_height, part_margin_bottom } = styles;
   const { midpoint_x } = computed;
 
-
   let top_y = computed.top_y + coll_padding_top;
-  
 
-  const label_data = build_coll_label_data(name, styles, {
+  const label_data = sl.build_data({ name }, styles, {
     top_y: top_y,
     midpoint_x: midpoint_x
   });
+  top_y = label_data.refs.bottom_y + coll_label_margin_bottom;
 
-  
+  let partitions_data = [];
+  for (const [partition, rows] of Object.entries(partitions)) {
+    const config = {
+      partition: partition,
+      rows: rows
+    };
+
+    const part_data = p.build_data(config, styles, {
+      part: partition,
+      top_y: top_y,
+      midpoint_x: midpoint_x
+    });
+    partitions_data.push(part_data);
+    top_y += (part_height + part_margin_bottom);
+  }
+
   return {
     kind: "stream",
     id: uuidv4(),
     name: name,
-    vars: {
-    },
     refs: {
-      bottom_y: ?
+      top_y: top_y,
+      bottom_y: top_y += coll_margin_bottom
     },
     children: {
-      label: sl.build_data(?, styles, {}),
-      partitions: [ ? ]
+      label: label_data,
+      partitions: partitions_data
     }
   };
 }

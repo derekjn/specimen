@@ -3,4 +3,4 @@ import ksql from './ksql-highlightjs';
 hljs.registerLanguage('sql', ksql);
 hljs.initHighlightingOnLoad();
 
-export { Specimen } from './specimen';
+export { Specimen } from './specimen2';

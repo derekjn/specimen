@@ -56,7 +56,7 @@ export function build_data(config, styles, computed) {
   return {
     kind: "persistent_query",
     id: uuidv4(),
-    name: name
+    name: name,
     rendering: {
       line: {
         x1: midpoint_x,

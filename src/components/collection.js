@@ -11,7 +11,6 @@ export function build_collection_data(config, styles, computed) {
   let top_y = computed.top_y + coll_padding_top;
 
   const container = `coll-${name}`;
-  const coll_result = { container: container };
   const partitions_result = [];
 
   const label_computed = { top_y: top_y, midpoint_x: midpoint_x, container: container };
