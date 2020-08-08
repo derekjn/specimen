@@ -177,10 +177,21 @@ Specimen.prototype.animate = function(layout) {
   const unpack_by_name = (name) => unpack_by_id(by_name[name]);
   const pack = (obj) => ci.pack(obj, by_id);
 
-  console.log(rt.run_until_drained(objs, {
+  let rt_context = rt.init_runtime(objs, {
     by_name: unpack_by_name,
     pack: pack
-  }));
+  });
+
+  while (rt_context.drained != true) {
+    const next_context = rt.tick(rt_context)
+    const action = next_context.action;
+
+    if (action) {
+      console.log(action);
+    }
+
+    rt_context = next_context;
+  }
 }
 
 Specimen.prototype.render = function() {

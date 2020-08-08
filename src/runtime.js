@@ -177,22 +177,33 @@ function execute_filter(runtime_context, query_context, query_parts, old_row) {
   };
 }
 
-export function run_until_drained(objs, data_fns) {
-  const { by_name, pack } = data_fns;
-  
+export function init_runtime(objs, data_fns) {
   const streams = objs.filter(component => component.kind == "stream");
   const pqs = objs.filter(component => component.kind == "persistent_query");
+  const pq_seq = pqs.map(pq => pq.name);
 
-  const sinks = streams.filter(s => s.graph.successors.length == 0);
-  const non_sinks = streams.filter(s => s.graph.successors.length > 0);
+  const { by_name } = data_fns;
 
-  let pq_seq = pqs.map(pq => pq.name);
-  let actions = [];
-  let lineage = {};
-  let offsets = initialize_offsets(pqs, streams, by_name);
-  let stream_time = initialize_stream_time(pq_seq);
+  return {
+    streams: streams,
+    pqs: pqs,
+    pq_seq: pq_seq,
+    offsets: initialize_offsets(pqs, streams, by_name),
+    stream_time: initialize_stream_time(pq_seq),
+    lineage: {},
+    data_fns: data_fns
+  };
+}
 
-  while (!is_drained(offsets, by_name)) {
+export function tick(rt_context) {
+  const { streams, pqs, offsets, stream_time, lineage, data_fns } = rt_context;
+  const { by_name, pack } = data_fns;
+
+  const drained = is_drained(offsets, by_name);
+  let pq_seq = rt_context.pq_seq;
+  let action = undefined;
+
+  if (!drained) {
     const pq = pq_seq[0];
     const pq_data = by_name(pq);
     const parent_stream_names = pq_data.graph.predecessors;
@@ -218,25 +229,26 @@ export function run_until_drained(objs, data_fns) {
         partitions: sink_partitions.length
       };
 
-      if (false) {
-        // if (where(query_context, old_row)) {
-        //   const action = evaluate_select(runtime_context, query_context, query_parts, old_row);
-        //   actions.push(action);
-        // } else {
-        //   const action = execute_filter(runtime_context, query_context, query_parts, old_row);
-        //   actions.push(action);
-        // }
-      } else {
-        const action = evaluate_select(runtime_context, query_context, query_parts, old_row);
-        actions.push(action);
-      }
+      action = evaluate_select(runtime_context, query_context, query_parts, old_row);
     }
 
     pq_seq = cycle_array(pq_seq);
-  }
 
-  return {
-    actions: actions,
-    lineage: lineage
-  };
+    return {
+      ...rt_context,
+      ...{
+        drained: false,
+        pq_seq: pq_seq,
+        action: action
+      }
+    };
+  } else {
+    return {
+      ...rt_context,
+      ...{
+        drained: true,
+        action: action
+      }
+    };
+  }
 }
