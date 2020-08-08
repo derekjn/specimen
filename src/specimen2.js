@@ -171,8 +171,16 @@ Specimen.prototype.draw_layout = function(layout) {
 Specimen.prototype.animate = function(layout) {
   const by_id = ci.index_by_id(layout);
   const by_name = ci.index_by_name(by_id);
+  const objs = Object.values(by_id)
 
-  console.log(rt.run_until_drained(by_id, by_name));
+  const unpack_by_id = (id) => ci.unpack(by_id, id);
+  const unpack_by_name = (name) => unpack_by_id(by_name[name]);
+  const pack = (obj) => ci.pack(obj, by_id);
+
+  console.log(rt.run_until_drained(objs, {
+    by_name: unpack_by_name,
+    pack: pack
+  }));
 }
 
 Specimen.prototype.render = function() {
