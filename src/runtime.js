@@ -1,15 +1,19 @@
+import * as ci from "./component-index";
 import { select_keys, uuidv4, cycle_array } from './util';
 
-function choose_lowest_timestamp(collections, offsets) {
+function choose_lowest_timestamp(streams, offsets) {
   let choices = []
 
-  Object.entries(collections).forEach(([name, { partitions }]) => {
-    Object.entries(partitions).forEach(([id, partition]) => {
-      const offset = offsets[name][id];
+  streams.forEach(s => {
+    const { id, name, children } = s;
+    const { partitions } = children;
 
-      if (partition[offset] != undefined) {
-        const props = { collection: name, partition: id };
-        choices.push({ ...partition[offset], ...props });
+    partitions.forEach((partition, i) => {
+      const offset = offsets[name][i];
+      const row = partition.children.rows[offset];
+
+      if (row != undefined) {
+        choices.push(row);
       }
     });
   });
@@ -25,55 +29,62 @@ function choose_lowest_timestamp(collections, offsets) {
   }, undefined);
 }
 
-function without_sinks(colls, sinks) {
-  return Object.entries(colls).reduce((all, [name, coll]) => {
-    if (!sinks.includes(coll.name)) {
-      all[name] = coll;
+function without_sinks(streams, sinks) {
+  return Object.entries(streams).reduce((all, [name, stream]) => {
+    if (!sinks.includes(stream.name)) {
+      all[name] = stream;
     }
 
     return all;
   }, {});
 }
 
-function is_drained(non_sinks, offsets) {
-  return Object.entries(offsets).every(([pq, colls]) => {
-    return Object.entries(colls).every(([coll, partitions]) => {
+function is_drained(offsets, by_id, by_name) {
+  return Object.entries(offsets).every(([pq, streams]) => {
+    return Object.entries(streams).every(([stream, partitions]) => {
       return Object.entries(partitions).every(([partition, offset]) => {
-        return offset == non_sinks[coll].partitions[partition].length;
+        const stream_id = by_name[stream];
+        const stream_data = ci.unpack(by_id, stream_id);
+        const partitions = stream_data.children.partitions;
+
+        return offset == partitions[partition].children.length;
       });
     });
   });
 }
 
-function swap_partitions(pq, colls, offsets, old_row, new_row) {
-  new_row.offset = colls[new_row.collection].partitions[new_row.partition].length;
-  colls[new_row.collection].partitions[new_row.partition].push(new_row);
-  offsets[pq][old_row.collection][old_row.partition]++;
+function swap_partitions(pq, streams, offsets, old_row, new_row) {
+  new_row.offset = streams[new_row.stream].partitions[new_row.partition].length;
+  streams[new_row.stream].partitions[new_row.partition].push(new_row);
+  offsets[pq][old_row.stream][old_row.partition]++;
 }
 
-function initialize_offsets(specimen, pqs, colls) {
+function initialize_offsets(pqs, streams, by_id, by_name) {
   return pqs.reduce((all_pqs, pq) => {
-    const parent_colls = specimen.parents(pq);
+    const parents = pq.graph.predecessors;
 
-    const coll_offsets = parent_colls.reduce((all_colls, parent) => {
-      const partitions = Object.keys(colls[parent].partitions);
+    const stream_offsets = parents.reduce((all_streams, parent) => {
+      const parent_id = by_name[parent];
+      const parent_data = ci.unpack(by_id, parent_id);
+      const partitions = parent_data.children.partitions;
 
-      const partition_offsets = partitions.reduce((all_partitions, partition) => {
-        all_partitions[partition] = 0;
-        return all_partitions;
-      }, {});
+      const partition_offsets = [...Array(partitions.length).keys()]
+            .reduce((all, i) => {
+              all[i] = 0;
+              return all;
+            }, {});
 
-      all_colls[parent] = partition_offsets;
-      return all_colls;
+      all_streams[parent] = partition_offsets;
+      return all_streams;
     }, {});
 
-    all_pqs[pq] = coll_offsets;
+    all_pqs[pq.name] = stream_offsets;
     return all_pqs;
   }, {});
 }
 
-function set_new_collection(new_row, into) {
-  new_row.collection = into;
+function set_new_stream(new_row, into) {
+  new_row.stream = into;
 }
 
 function set_new_partition(context, new_row, partition_by) {
@@ -105,7 +116,7 @@ function update_stream_time(stream_time, pq, t) {
 }
 
 function evaluate_select(runtime_context, query_context, query_parts, old_row) {
-  const { colls, offsets, stream_time, lineage, pq } = runtime_context;
+  const { streams, offsets, stream_time, lineage, pq } = runtime_context;
   const { into, partition_by } = query_parts;
 
   const old_offsets = clone_offsets(offsets[pq]);
@@ -113,13 +124,13 @@ function evaluate_select(runtime_context, query_context, query_parts, old_row) {
 
   const new_row = { ...old_row };
 
-  set_new_collection(new_row, into);
+  set_new_stream(new_row, into);
   set_new_partition(query_context, new_row, partition_by);
 
   old_row.id = uuidv4();
   new_row.derived_id = old_row.id;
 
-  swap_partitions(pq, colls, offsets, old_row, new_row);
+  swap_partitions(pq, streams, offsets, old_row, new_row);
   update_stream_time(stream_time, pq, old_row.t);
 
   if (old_row.derived_id) {
@@ -130,8 +141,8 @@ function evaluate_select(runtime_context, query_context, query_parts, old_row) {
 
   return {
     kind: "keep",
-    from: old_row.collection,
-    to: new_row.collection,
+    from: old_row.stream,
+    to: new_row.stream,
     processed_by: pq,
     old_row: old_row,
     new_row: new_row,
@@ -149,7 +160,7 @@ function execute_filter(runtime_context, query_context, query_parts, old_row) {
   const old_stream_time = stream_time[pq];
 
   old_row.id = uuidv4();
-  offsets[pq][old_row.collection][old_row.partition]++;
+  offsets[pq][old_row.stream][old_row.partition]++;
   update_stream_time(stream_time, pq, old_row.t);
 
   if (old_row.derived_id) {
@@ -162,7 +173,7 @@ function execute_filter(runtime_context, query_context, query_parts, old_row) {
   return {
     kind: "discard",
     old_row: old_row,
-    from: old_row.collection,
+    from: old_row.stream,
     processed_by: pq,
     new_offsets: clone_offsets(offsets[pq]),
     old_offsets: old_offsets,
@@ -171,51 +182,56 @@ function execute_filter(runtime_context, query_context, query_parts, old_row) {
   };
 }
 
-export function run_until_drained(specimen) {
-  const kinds = specimen.node_kinds();
-  const colls = kinds.collection;
-  const pqs = kinds.persistent_query;
-  const sinks = specimen.sink_collections();
-  const non_sinks = without_sinks(colls, sinks);
+export function run_until_drained(by_id, by_name) {
+  const objs = Object.values(by_id)
 
-  let pq_seq = Object.keys(pqs);
+  const streams = objs.filter(component => component.kind == "stream");
+  const pqs = objs.filter(component => component.kind == "persistent_query");
+
+  const sinks = streams.filter(s => s.graph.successors.length == 0);
+  const non_sinks = streams.filter(s => s.graph.successors.length > 0);
+
+  let pq_seq = pqs.map(pq => pq.name);
   let actions = [];
   let lineage = {};
-  let offsets = initialize_offsets(specimen, pq_seq, colls);
+  let offsets = initialize_offsets(pqs, streams, by_id, by_name);
   let stream_time = initialize_stream_time(pq_seq);
 
-  while (!is_drained(non_sinks, offsets)) {
+//  while (!is_drained(offsets, by_name, by_id)) {
     const pq = pq_seq[0];
-    const parents = specimen.parents(pq);
-    const parent_colls = select_keys(colls, parents);    
-    const old_row = choose_lowest_timestamp(parent_colls, offsets[pq]);
-    const runtime_context = {
-      pq, colls, offsets, stream_time, lineage
-    };
+    const pq_data = ci.unpack(by_id, by_name[pq]);
+    const parent_stream_names = pq_data.graph.predecessors;
+    const parent_streams = parent_stream_names.map(s => ci.unpack(by_id, by_name[s]));
 
-    if (old_row) {
-      const query_parts = pqs[pq];
-      const { into, where, partition_by } = query_parts;
-      const query_context = {
-        partitions: Object.keys(colls[into].partitions).length
-      };
+  const old_row = choose_lowest_timestamp(parent_streams, offsets[pq]);
 
-      if (where) {
-        if (where(query_context, old_row)) {
-          const action = evaluate_select(runtime_context, query_context, query_parts, old_row);
-          actions.push(action);
-        } else {
-          const action = execute_filter(runtime_context, query_context, query_parts, old_row);
-          actions.push(action);
-        }
-      } else {
-        const action = evaluate_select(runtime_context, query_context, query_parts, old_row);
-        actions.push(action);
-      }
-    }
+  //   const runtime_context = {
+  //     pq, streams, offsets, stream_time, lineage
+  //   };
+
+  //   if (old_row) {
+  //     const query_parts = pqs[pq];
+  //     const { into, where, partition_by } = query_parts;
+  //     const query_context = {
+  //       partitions: Object.keys(streams[into].partitions).length
+  //     };
+
+  //     // if (where) {
+  //     //   if (where(query_context, old_row)) {
+  //     //     const action = evaluate_select(runtime_context, query_context, query_parts, old_row);
+  //     //     actions.push(action);
+  //     //   } else {
+  //     //     const action = execute_filter(runtime_context, query_context, query_parts, old_row);
+  //     //     actions.push(action);
+  //     //   }
+  //     // } else {
+  //     //   const action = evaluate_select(runtime_context, query_context, query_parts, old_row);
+  //     //   actions.push(action);
+  //     // }
+  //   }
     
-    pq_seq = cycle_array(pq_seq);
-  }
+  //   pq_seq = cycle_array(pq_seq);
+  // }
 
   return {
     actions: actions,

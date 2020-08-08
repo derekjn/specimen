@@ -36,7 +36,7 @@ export function build_data(config, styles, computed) {
   const { pq_label_margin_left, pq_label_margin_bottom } = styles;
   const { pq_metadata_offset_top, pq_metadata_margin_top } = styles;
 
-  const { top_y, midpoint_x } = computed;
+  const { predecessors, successors, top_y, midpoint_x } = computed;
 
   const absolute_top_y = top_y + pq_margin_top;
   let top_y_slide = absolute_top_y;
@@ -111,6 +111,10 @@ export function build_data(config, styles, computed) {
     children: {
       stream_time: stream_time_data,
       source_partitions: source_partitions_data
+    },
+    graph: {
+      predecessors: predecessors,
+      successors: successors
     },
     refs: {
       midpoint_x: midpoint_x,

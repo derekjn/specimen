@@ -6,7 +6,7 @@ export function build_data(config, styles, computed) {
   const { name, partitions } = config;
   const { coll_padding_top, coll_margin_bottom, coll_label_margin_bottom } = styles;
   const { part_height, part_margin_bottom } = styles;
-  const { midpoint_x } = computed;
+  const { predecessors, successors, midpoint_x } = computed;
 
   const absolute_top_y = computed.top_y + coll_padding_top;
   let top_y_slide = absolute_top_y;
@@ -46,6 +46,10 @@ export function build_data(config, styles, computed) {
     children: {
       label: label_data,
       partitions: partitions_data
+    },
+    graph: {
+      predecessors: predecessors,
+      successors: successors
     }
   };
 }

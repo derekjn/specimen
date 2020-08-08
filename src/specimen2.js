@@ -1,14 +1,15 @@
-import * as stream from './components/stream';
-import * as pq from './components/persistent-query2';
-import * as controls from './components/controls';
-import * as svg from './components/svg';
-import * as qt from './components/query-text';
-import * as component from './component';
-import * as graphlib from 'graphlib';
+import * as stream from "./components/stream";
+import * as pq from "./components/persistent-query2";
+import * as controls from "./components/controls";
+import * as svg from "./components/svg";
+import * as qt from "./components/query-text";
+import * as ci from "./component-index";
+import * as v from "./vertical";
+import * as s from "./styles";
+import * as rt from "./runtime";
+import * as graphlib from "graphlib";
 
-import { vertically_center_layout } from "./vertical";
-import { styles } from './styles';
-import { uuidv4, inverse_map } from './util';
+import { uuidv4, inverse_map } from "./util";
 
 let data_fns = {
   "stream": stream.build_data,
@@ -49,7 +50,7 @@ function add_metadata(component, styles) {
 
 export function Specimen(container, styles) {
   this._container = container;
-  this._styles = styles;
+  this._styles = { ... s.styles, ...styles };
   this._graph = new graphlib.Graph();
 }
 
@@ -143,7 +144,15 @@ Specimen.prototype.horizontal_layout = function() {
 
     names.sort().forEach(name => {
       const node = this._graph.node(name);
-      const computed = { top_y: top_y, midpoint_x: midpoint_x };
+      const predecessors = this._graph.predecessors(name);
+      const successors = this._graph.successors(name);
+
+      const computed = {
+        predecessors: predecessors,
+        successors: successors,
+        top_y: top_y,
+        midpoint_x: midpoint_x
+      };
 
       if (node.kind == "persistent_query") {
         const source_partitions = this.parents(node.name).reduce((acc, parent) => {
@@ -167,14 +176,10 @@ Specimen.prototype.horizontal_layout = function() {
     return all;
   }, []);
 
-  return vertically_center_layout(layout).flatMap(xs => xs);
+  return v.vertically_center_layout(layout).flatMap(xs => xs);
 }
 
-Specimen.prototype.render = function() {
-  const { svg_width } = this._styles;
-
-  const layout = this.horizontal_layout();
-  
+Specimen.prototype.draw_layout = function(layout) {
   const svg_data = svg.build_data({}, this._styles, {});
   const svg_el = svg.render(svg_data);
 
@@ -187,11 +192,22 @@ Specimen.prototype.render = function() {
     svg_el.appendChild(element);
   });
 
-//  const by_id = component.pack(layout[0])
-
   const target = document.querySelector(this._container);
   target.appendChild(controls_el);
   target.appendChild(svg_el);
 
-  qt.render(layout, styles, { target: svg_el });
+  qt.render(layout, this._styles, { target: svg_el });
+}
+
+Specimen.prototype.animate = function(layout) {
+  const by_id = ci.index_by_id(layout);
+  const by_name = ci.index_by_name(by_id);
+
+  rt.run_until_drained(by_id, by_name);
+}
+
+Specimen.prototype.render = function() {
+  const layout = this.horizontal_layout();
+  this.draw_layout(layout);
+  this.animate(layout);
 }

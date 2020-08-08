@@ -1,34 +1,30 @@
 import { Specimen } from '../../../src/index';
-import { styles } from '../../../src/styles';
 
 function example(container) {
-  const my_styles = {
-    ...styles,
-    ...{
-      svg_width: 1200,
-      svg_height: 500,
+  const styles = {
+    svg_width: 1200,
+    svg_height: 500,
 
-      pq_width: 150,
-      pq_height: 150,
-      pq_margin_top: 50,
-      pq_bracket_len: 25,
-      pq_label_margin_left: 0,
-      pq_label_margin_bottom: 10,
+    pq_width: 150,
+    pq_height: 150,
+    pq_margin_top: 50,
+    pq_bracket_len: 25,
+    pq_label_margin_left: 0,
+    pq_label_margin_bottom: 10,
 
-      part_width: 200,
-      part_height: 50,
-      part_bracket_len: 10,
-      part_id_margin_left: -15,
-      part_id_margin_top: 8,
+    part_width: 200,
+    part_height: 50,
+    part_bracket_len: 10,
+    part_id_margin_left: -15,
+    part_id_margin_top: 8,
 
-      row_width: 15,
-      row_height: 15,
-      row_margin_left: 8,
-      row_offset_right: 10,
-    }
+    row_width: 15,
+    row_height: 15,
+    row_margin_left: 8,
+    row_offset_right: 10,
   };
 
-  const s = new Specimen(container, my_styles);
+  const s = new Specimen(container, styles);
 
   s.add_root({
     name: "s1",
