@@ -1,14 +1,15 @@
-import * as graphlib from 'graphlib';
-
 import * as stream from './components/stream';
 import * as pq from './components/persistent-query2';
-import { build_svg_data, render_svg } from './components/svg';
+import * as controls from './components/controls';
+import * as svg from './components/svg';
+
+import * as component from './component';
+
+import * as graphlib from 'graphlib';
 
 import { vertically_center_layout } from "./vertical";
 import { styles } from './styles';
 import { uuidv4, inverse_map } from './util';
-
-import $ from 'jquery';
 
 let data_fns = {
   "stream": stream.build_data,
@@ -47,9 +48,10 @@ function add_metadata(component, styles) {
   }
 }
 
-export function Specimen(styles) {
-  this._graph = new graphlib.Graph();
+export function Specimen(container, styles) {
+  this._container = container;
   this._styles = styles;
+  this._graph = new graphlib.Graph();
 }
 
 Specimen.prototype.add_root = function(node) {
@@ -151,7 +153,7 @@ Specimen.prototype.horizontal_layout = function() {
           return acc;
         }, {});
 
-        computed.source_partitions = source_partitions;
+        node.source_partitions = source_partitions;
       } 
 
       const data_fn = data_fns[node.kind];
@@ -169,20 +171,29 @@ Specimen.prototype.horizontal_layout = function() {
   return vertically_center_layout(layout).flatMap(xs => xs);
 }
 
-Specimen.prototype.render = function(layout, container) {
+Specimen.prototype.render = function() {
   const { svg_width } = this._styles;
-  const svg_data = build_svg_data(this._styles);
-  render_svg(container, svg_data);
 
-  const svg_el = document.querySelector(".system");
+  const layout = this.horizontal_layout();
+  
+  const svg_data = svg.build_data({}, this._styles, {});
+  const svg_el = svg.render(svg_data);
+
+  const controls_data = controls.build_data({}, this._styles, {});
+  const controls_el = controls.render(controls_data);
 
   layout.forEach(data => {
     const fn = rendering_fns[data.kind];
     const element = fn(data);
     svg_el.appendChild(element);
   });
-//  render_query_text(layout, this._styles.svg_target, this._styles.svg_width);
 
-  // Repaint.
-  $(container).html($(container).html());
+  const by_id = component.pack(layout[0])
+
+  
+  //  render_query_text(layout, this._styles.svg_target, this._styles.svg_width);
+
+  const target = document.querySelector(this._container);
+  target.appendChild(controls_el);
+  target.appendChild(svg_el);
 }

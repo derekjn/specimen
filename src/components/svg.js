@@ -1,19 +1,27 @@
-import $ from 'jquery';
+import { uuidv4, create_svg_el } from './../util';
 
-export function build_svg_data(styles) {
-  const { svg_width, svg_height, svg_target } = styles;
+export function build_data(config, styles, computed) {
+  const { svg_width, svg_height } = styles;
 
   return {
     kind: "svg",
-    width: svg_width,
-    height: svg_height,
-    target: svg_target
+    id: uuidv4(),
+    rendering: {
+      width: svg_width,
+      height: svg_height
+    }
   };
 }
 
-export function render_svg(container, data) {
-  const { width, height, target } = data;
+export function render(data) {
+  const { id, rendering } = data;
+  const { width, height } = rendering;
 
-  const html = `<svg class="${target}" width="${width}" height="${height}"></svg>`;
-  $(container).append(html);
+  const svg = create_svg_el("svg");
+  svg.id = id;
+  svg.setAttributeNS(null, "width", width);
+  svg.setAttributeNS(null, "height", height);
+  svg.classList.add("animation");
+
+  return svg;
 }

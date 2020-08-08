@@ -1,7 +1,7 @@
 import { Specimen } from '../../../src/index';
 import { styles } from '../../../src/styles';
 
-function example_5() {
+function example(container) {
   const my_styles = {
     ...styles,
     ...{
@@ -28,7 +28,7 @@ function example_5() {
     }
   };
 
-  const s = new Specimen(my_styles);
+  const s = new Specimen(container, my_styles);
 
   s.add_root({
     name: "s1",
@@ -60,43 +60,43 @@ function example_5() {
     }
   });
 
-  // s.add_child(["s1"], {
-  //   name: "pq1",
-  //   kind: "persistent_query",
-  //   into: "s2",
-  //   query_text: [
-  //     "CREATE STREAM s2 AS",
-  //     "  SELECT col1, FLOOR(col2) AS f",
-  //     "  FROM s1",
-  //     "  WHERE col3 != 'foo'",
-  //     "  EMIT CHANGES;"
-  //   ],
-  //   where: function(context, row) {
-  //     return row.value != 41 && row.value != 42;
-  //   },
-  //   style: {
-  //     fill: function(old_row, new_row) {
-  //       const flavors = [
-  //         "#38CCED",
-  //         "#0074A2",
-  //         "#829494",
-  //         "#D8365D"
-  //       ];
-  //       return flavors[old_row.value % flavors.length];
-  //     }
-  //   }
-  // });
+  s.add_child(["s1"], {
+    name: "pq1",
+    kind: "persistent_query",
+    into: "s2",
+    query_text: [
+      "CREATE STREAM s2 AS",
+      "  SELECT col1, FLOOR(col2) AS f",
+      "  FROM s1",
+      "  WHERE col3 != 'foo'",
+      "  EMIT CHANGES;"
+    ],
+    where: function(context, row) {
+      return row.value != 41 && row.value != 42;
+    },
+    style: {
+      fill: function(old_row, new_row) {
+        const flavors = [
+          "#38CCED",
+          "#0074A2",
+          "#829494",
+          "#D8365D"
+        ];
+        return flavors[old_row.value % flavors.length];
+      }
+    }
+  });
 
-  // s.add_child(["pq1"], {
-  //   name: "s2",
-  //   kind: "stream",
-  //   partitions: {
-  //     0: [],
-  //     1: [],
-  //     2: [],
-  //     3: []
-  //   }
-  // });
+  s.add_child(["pq1"], {
+    name: "s2",
+    kind: "stream",
+    partitions: {
+      0: [],
+      1: [],
+      2: [],
+      3: []
+    }
+  });
 
 
   // s.add_child(["s2"], {
@@ -117,7 +117,7 @@ function example_5() {
 
   // s.add_child(["pq2"], {
   //   name: "s3",
-  //   kind: "collection",
+  //   kind: "stream",
   //   partitions: {
   //     0: [],
   //     1: [],
@@ -125,11 +125,8 @@ function example_5() {
   //     3: []
   //   }
   // });
-  
-  const container = ".example-5";
-  const layout = s.horizontal_layout(my_styles);
-  s.render(layout, container);
-  // s.animate(layout, container);
+
+  s.render();
 }
 
-example_5();
+example(".example-1");

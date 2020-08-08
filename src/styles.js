@@ -1,5 +1,4 @@
 export const styles = {
-  svg_target: "system",
   svg_width: 1200,
   svg_height: 500,
 

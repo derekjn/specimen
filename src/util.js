@@ -53,3 +53,7 @@ export function relative_sub(x) {
 export function ms_for_translate(m, ms) {
   return (Math.abs(m.translateX || 0) + Math.abs(m.translateY || 0)) * ms;
 }
+
+export function create_svg_el(tag) {
+  return document.createElementNS("http://www.w3.org/2000/svg", tag);
+}

@@ -1,8 +1,15 @@
+let translate_y_fns = {
+  "stream": stream_translate_y,
+  "persistent_query": persistent_query_translate_y
+};
+
 function stream_translate_y(data, height) {
   data.refs.top_y += height;
   data.refs.bottom_y += height;
 
   const label = data.children.label;
+
+  label.rendering.text.y += height;
 
   label.rendering.tip.y1 += height;
   label.rendering.tip.y2 += height;
@@ -51,22 +58,15 @@ function persistent_query_translate_y(data, height) {
   data.refs.midpoint_y += height;
   data.refs.bottom_y += height;
 
-  data.children.source_partitions.partitions.forEach(partition => {
+  data.children.source_partitions.forEach(partition => {
     partition.rendering.y += height;
+    partition.refs.bottom_y += height;
   });
 
-  data.children.stream_time.y += height;
+  data.children.stream_time.rendering.y += height;
+  data.children.stream_time.refs.bottom_y += height;
   
   return data;
-}
-
-function translate_y(data, height) {
-  switch(data.kind) {
-  case "stream":
-    return stream_translate_y(data, height);
-  case "persistent_query":
-    return persistent_query_translate_y(data, height);
-  }
 }
 
 export function vertically_center_layout(layout_data) {
@@ -91,7 +91,8 @@ export function vertically_center_layout(layout_data) {
     const each_diff = diff / n;
 
     return layout_data[i].map(data => {
-      return translate_y(data, each_diff);
+      const fn = translate_y_fns[data.kind];
+      return fn(data, each_diff);
     });
   });
 }

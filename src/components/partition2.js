@@ -1,5 +1,5 @@
 import * as r from './row2';
-import { uuidv4 } from './../util';
+import { uuidv4, create_svg_el } from './../util';
 
 export function build_data(config, styles, computed) {
   const { partition, rows } = config;
@@ -80,33 +80,33 @@ export function render(data, styles, computed) {
   const { tl, tr, bl, br } = brackets;
   const { rows } = children;
 
-  const g = document.createElement("g");
+  const g = create_svg_el("g");
   g.id = id;
   g.classList.add("partition-container");
 
-  const text = document.createElement("text");
-  text.setAttribute("x", partition_label.x);
-  text.setAttribute("y", partition_label.y);
+  const text = create_svg_el("text");
+  text.setAttributeNS(null, "x", partition_label.x);
+  text.setAttributeNS(null, "y", partition_label.y);
   text.classList.add("code");
   text.innerText = vars.partition_id;
 
-  const d_tl = document.createElement("path");
-  d_tl.setAttribute("d", `M ${tl.x},${tl.y} h ${tl.h} v ${tl.v}`);
+  const d_tl = create_svg_el("path");
+  d_tl.setAttributeNS(null, "d", `M ${tl.x},${tl.y} h ${tl.h} v ${tl.v}`);
   d_tl.classList.add("partition");
 
-  const d_tr = document.createElement("path");
-  d_tr.setAttribute("d", `M ${tr.x},${tr.y} h ${tr.h} v ${tr.v}`);
+  const d_tr = create_svg_el("path");
+  d_tr.setAttributeNS(null, "d", `M ${tr.x},${tr.y} h ${tr.h} v ${tr.v}`);
   d_tr.classList.add("partition");
 
-  const d_bl = document.createElement("path");
-  d_bl.setAttribute("d", `M ${bl.x},${bl.y} v ${bl.v} h ${bl.h}`);
+  const d_bl = create_svg_el("path");
+  d_bl.setAttributeNS(null, "d", `M ${bl.x},${bl.y} v ${bl.v} h ${bl.h}`);
   d_bl.classList.add("partition");
 
-  const d_br = document.createElement("path");
-  d_br.setAttribute("d", `M ${br.x},${br.y} v ${br.v} h ${br.h}`);
+  const d_br = create_svg_el("path");
+  d_br.setAttributeNS(null, "d", `M ${br.x},${br.y} v ${br.v} h ${br.h}`);
   d_br.classList.add("partition");
 
-  const rows_g = document.createElement("g");
+  const rows_g = create_svg_el("g");
   rows_g.classList.add("rows");
 
   const d_rows = rows.map(row => r.render(row));

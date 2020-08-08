@@ -1,8 +1,8 @@
-import { uuidv4 } from './../util';
+import { uuidv4, create_svg_el } from './../util';
 
-export function build_data(config, computed) {
-  const { collection, partition } = config;
-  const { left_x, top_y, bottom_y, bottom_margin } = computed;
+export function build_data(config, styles, computed) {
+  const { stream, partition } = config;
+  const { left_x, top_y, bottom_margin } = computed;
 
   return {
     kind: "source_partition_offset",
@@ -13,13 +13,13 @@ export function build_data(config, computed) {
       subtext_id: uuidv4()
     },
     vars: {
-      collection: collection,
+      stream: stream,
       partition: partition,
-      label: `${collection}/${partition}: `,
+      label: `${stream}/${partition}: `,
       init: "-"
     },
     refs: {
-      bottom_y: bottom_y
+      bottom_y: top_y + bottom_margin
     }
   };
 }
@@ -27,17 +27,18 @@ export function build_data(config, computed) {
 export function render(data) {
   const { id, vars, rendering } = data;
 
-  const text = document.createElement("text");
+  const text = create_svg_el("text");
   text.id = id;
-  text.setAttribute("data-collection", vars.collection);
+  text.setAttribute("data-stream", vars.stream);
   text.setAttribute("data-partition", vars.partition);
   text.setAttribute("x", rendering.x);
   text.setAttribute("y", rendering.y);
-  text.innerText = vars.label;
+  text.classList.add("code");
+  text.textContent = vars.label;
 
-  const tspan = document.createElement("tspan");
+  const tspan = create_svg_el("tspan");
   tspan.id = rendering.subtext_id;
-  tspan.innerText = vars.init;
+  tspan.textContent = vars.init;
 
   text.appendChild(tspan);
 

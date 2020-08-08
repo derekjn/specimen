@@ -1,4 +1,4 @@
-.system {
+.animation {
     display: block;
     margin: auto;
 }
@@ -38,4 +38,8 @@
 
 .pq-code-container {
     margin-top: 40px;
+}
+
+.controls button {
+    margin-right: 5px;
 }

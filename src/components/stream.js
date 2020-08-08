@@ -1,6 +1,6 @@
 import * as p from './partition2';
 import * as sl from './stream-label';
-import { uuidv4 } from './../util';
+import { uuidv4, create_svg_el } from './../util';
 
 export function build_data(config, styles, computed) {
   const { name, partitions } = config;
@@ -8,13 +8,14 @@ export function build_data(config, styles, computed) {
   const { part_height, part_margin_bottom } = styles;
   const { midpoint_x } = computed;
 
-  let top_y = computed.top_y + coll_padding_top;
+  const absolute_top_y = computed.top_y + coll_padding_top;
+  let top_y_slide = absolute_top_y;
 
   const label_data = sl.build_data({ name }, styles, {
-    top_y: top_y,
+    top_y: top_y_slide,
     midpoint_x: midpoint_x
   });
-  top_y = label_data.refs.bottom_y + coll_label_margin_bottom;
+  top_y_slide = label_data.refs.bottom_y + coll_label_margin_bottom;
 
   let partitions_data = [];
   for (const [partition, rows] of Object.entries(partitions)) {
@@ -25,20 +26,22 @@ export function build_data(config, styles, computed) {
 
     const part_data = p.build_data(config, styles, {
       part: partition,
-      top_y: top_y,
+      top_y: top_y_slide,
       midpoint_x: midpoint_x
     });
     partitions_data.push(part_data);
-    top_y += (part_height + part_margin_bottom);
+    top_y_slide += (part_height + part_margin_bottom);
   }
+
+  const absolute_bottom_y = top_y_slide += coll_margin_bottom;
 
   return {
     kind: "stream",
     id: uuidv4(),
     name: name,
     refs: {
-      top_y: top_y,
-      bottom_y: top_y += coll_margin_bottom
+      top_y: absolute_top_y,
+      bottom_y: absolute_bottom_y
     },
     children: {
       label: label_data,
@@ -51,7 +54,7 @@ export function render(data) {
   const { id, rendering, children } = data;
   const { label, partitions } = children;
 
-  const g = document.createElement("g");
+  const g = create_svg_el("g");
   g.id = id;
   g.classList.add("stream-container");
 

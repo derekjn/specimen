@@ -1,4 +1,4 @@
-import { uuidv4, select_keys } from './../util';
+import { uuidv4, select_keys, create_svg_el } from './../util';
 
 export function build_data(config, styles, computed) {
   const { record, source_id, style: row_style } = config;
@@ -36,21 +36,21 @@ export function build_data(config, styles, computed) {
 export function render(data) {
   const { id, vars, rendering } = data;
 
-  const rect = document.createElement("rect");
+  const rect = create_svg_el("rect");
   rect.id = id;
-  rect.setAttribute("x", rendering.x);
-  rect.setAttribute("y", rendering.y);
-  rect.setAttribute("width", rendering.width);
-  rect.setAttribute("height", rendering.height);
-  rect.setAttribute("fill", rendering.fill);
-  rect.setAttribute("data-stream", vars.record.stream);
-  rect.setAttribute("data-partition", vars.record.partition);
-  rect.setAttribute("data-offset", vars.record.offset);
+  rect.setAttributeNS(null, "x", rendering.x);
+  rect.setAttributeNS(null, "y", rendering.y);
+  rect.setAttributeNS(null, "width", rendering.width);
+  rect.setAttributeNS(null, "height", rendering.height);
+  rect.setAttributeNS(null, "fill", rendering.fill);
+  rect.setAttributeNS(null, "data-stream", vars.record.stream);
+  rect.setAttributeNS(null, "data-partition", vars.record.partition);
+  rect.setAttributeNS(null, "data-offset", vars.record.offset);
 
-  const title = document.createElement("title");
+  const title = create_svg_el("title");
   const record_ks = ["stream", "partition", "offset", "t", "key", "value"];
   const row_data = select_keys(vars.record, record_ks);
-  title.innerText = JSON.stringify(row_data, null, 4);
+  title.textContent = JSON.stringify(row_data, null, 4);
 
   rect.appendChild(title);
 
