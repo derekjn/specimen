@@ -73,37 +73,6 @@ Specimen.prototype.get_node = function(name) {
   return this._graph.node(name);
 }
 
-Specimen.prototype.node_kinds = function() {
-  const nodes = this._graph.nodes();
-  const vals = nodes.map(node => {
-    return this._graph.node(node);
-  });
-  
-  return vals.reduce((all, node) => {
-    let group = all[node.kind] || {};
-    group[node.name] = node;
-    all[node.kind] = group;
-
-    return all;
-  }, {});
-}
-
-Specimen.prototype.source_collections = function() {
-  return this._graph.sources();
-}
-
-Specimen.prototype.sink_collections = function() {
-  return this._graph.sinks();
-}
-
-Specimen.prototype.parents = function(name) {
-  return this._graph.predecessors(name);
-}
-
-Specimen.prototype.children = function(name) {
-  return this._graph.successors(name);
-}
-
 Specimen.prototype.layout_buckets = function() {
   let index = {};
   const seq = graphlib.alg.topsort(this._graph);
@@ -155,7 +124,7 @@ Specimen.prototype.horizontal_layout = function() {
       };
 
       if (node.kind == "persistent_query") {
-        const source_partitions = this.parents(node.name).reduce((acc, parent) => {
+        const source_partitions = this._graph.predecessors(node.name).reduce((acc, parent) => {
           const node = this.get_node(parent);
           acc[parent] = Object.keys(node.partitions);          
           return acc;

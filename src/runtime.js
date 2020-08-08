@@ -30,16 +30,6 @@ function choose_lowest_timestamp(streams, offsets) {
   }, undefined);
 }
 
-function without_sinks(streams, sinks) {
-  return Object.entries(streams).reduce((all, [name, stream]) => {
-    if (!sinks.includes(stream.name)) {
-      all[name] = stream;
-    }
-
-    return all;
-  }, {});
-}
-
 function is_drained(offsets, by_id, by_name) {
   return Object.entries(offsets).every(([pq, streams]) => {
     return Object.entries(streams).every(([stream, partitions]) => {
@@ -102,8 +92,8 @@ function set_new_stream(new_row, into) {
 function set_new_partition(context, new_row, partition_by) {
   if (partition_by) {
     const key = partition_by(context, new_row);
-    new_row.key = key;
-    new_row.partition = key % context.partitions;
+    new_row.vars.record.key = key;
+    new_row.vars.record.partition = key % context.partitions;
   }
 }
 
