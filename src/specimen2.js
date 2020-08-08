@@ -2,9 +2,8 @@ import * as stream from './components/stream';
 import * as pq from './components/persistent-query2';
 import * as controls from './components/controls';
 import * as svg from './components/svg';
-
+import * as qt from './components/query-text';
 import * as component from './component';
-
 import * as graphlib from 'graphlib';
 
 import { vertically_center_layout } from "./vertical";
@@ -188,12 +187,11 @@ Specimen.prototype.render = function() {
     svg_el.appendChild(element);
   });
 
-  const by_id = component.pack(layout[0])
-
-  
-  //  render_query_text(layout, this._styles.svg_target, this._styles.svg_width);
+//  const by_id = component.pack(layout[0])
 
   const target = document.querySelector(this._container);
   target.appendChild(controls_el);
   target.appendChild(svg_el);
+
+  qt.render(layout, styles, { target: svg_el });
 }
