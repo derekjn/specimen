@@ -203,7 +203,7 @@ Specimen.prototype.animate = function(layout) {
   const by_id = ci.index_by_id(layout);
   const by_name = ci.index_by_name(by_id);
 
-  rt.run_until_drained(by_id, by_name);
+  console.log(rt.run_until_drained(by_id, by_name));
 }
 
 Specimen.prototype.render = function() {

@@ -67,9 +67,9 @@ function example(container) {
       "  WHERE col3 != 'foo'",
       "  EMIT CHANGES;"
     ],
-    where: function(context, row) {
-      return row.value != 41 && row.value != 42;
-    },
+    // where: function(context, row) {
+    //   return row.value != 41 && row.value != 42;
+    // },
     style: {
       fill: function(old_row, new_row) {
         const flavors = [
