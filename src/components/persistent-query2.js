@@ -123,10 +123,12 @@ export function build_data(config, styles, computed) {
       successors: successors
     },
     refs: {
-      midpoint_x: midpoint_x,
-      midpoint_y: box_bottom_y - (pq_height / 2),
       top_y: absolute_top_y,
-      bottom_y: stream_time_data.refs.bottom_y
+      bottom_y: stream_time_data.refs.bottom_y,
+      midpoint_y: box_bottom_y - (pq_height / 2),
+      left_x: left_x,
+      right_x: right_x,
+      midpoint_x: midpoint_x
     }
   }
 }

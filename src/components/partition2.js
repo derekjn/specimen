@@ -65,8 +65,10 @@ export function build_data(config, styles, computed) {
       partition_id: partition
     },
     refs: {
+      top_y: top_y,
       midpoint_y: midpoint_y,
-      right_x: right_x
+      right_x: right_x,
+      left_x: left_x
     },
     children: {
       rows: rows_data

@@ -3,10 +3,12 @@ import * as pq from "./components/persistent-query2";
 import * as controls from "./components/controls";
 import * as svg from "./components/svg";
 import * as qt from "./components/query-text";
+import * as f from "./components/free";
 import * as ci from "./component-index";
 import * as v from "./vertical";
 import * as s from "./styles";
 import * as rt from "./runtime";
+import * as a from "./animate2";
 import * as graphlib from "graphlib";
 
 import { uuidv4, inverse_map } from "./util";
@@ -23,15 +25,15 @@ let rendering_fns = {
 
 function add_metadata(component, styles) {
   const { row_default_fill } = styles;
-  
+
   switch(component.kind) {
   case "stream":
-    Object.entries(component.partitions).forEach(([id, partition]) => {
-      partition.forEach((row, i) => {
+    component.partitions.forEach((partition, partition_id) => {
+      partition.forEach((row, offset) => {
         row.record = {
           stream: component.name,
-          partition: id,
-          offset: i,
+          partition: partition_id,
+          offset: offset,
           t: row.t,
           key: row.key,
           value: row.value
@@ -155,20 +157,31 @@ Specimen.prototype.draw_layout = function(layout) {
   const controls_data = controls.build_data({}, this._styles, {});
   const controls_el = controls.render(controls_data);
 
+  const free_data = f.build_data({}, this._styles, {});
+  const free_el = f.render(free_data);
+
   layout.forEach(data => {
     const fn = rendering_fns[data.kind];
     const element = fn(data);
     svg_el.appendChild(element);
   });
 
+  svg_el.appendChild(free_el);
+
   const target = document.querySelector(this._container);
   target.appendChild(controls_el);
   target.appendChild(svg_el);
 
   qt.render(layout, this._styles, { target: svg_el });
+
+  return {
+    target_el: target,
+    svg_el,
+    free_el
+  };
 }
 
-Specimen.prototype.animate = function(layout) {
+Specimen.prototype.animate = function(layout, elements) {
   const by_id = ci.index_by_id(layout);
   const by_name = ci.index_by_name(by_id);
   const objs = Object.values(by_id)
@@ -177,17 +190,25 @@ Specimen.prototype.animate = function(layout) {
   const unpack_by_name = (name) => unpack_by_id(by_name[name]);
   const pack = (obj) => ci.pack(obj, by_id);
 
-  let rt_context = rt.init_runtime(objs, {
+  const data_fns = {
+    by_id: unpack_by_id,
     by_name: unpack_by_name,
     pack: pack
-  });
+  };
+
+  const { free_el } = elements;
+
+  let rt_context = rt.init_runtime(objs, data_fns);
 
   while (rt_context.drained != true) {
     const next_context = rt.tick(rt_context)
     const action = next_context.action;
 
     if (action) {
-      console.log(action);
+      a.update_layout(action, data_fns, this._styles, free_el);
+      const action_animation_seq = a.animation_seq(action, data_fns, this._styles);
+
+      console.log(action_animation_seq);
     }
 
     rt_context = next_context;
@@ -196,6 +217,6 @@ Specimen.prototype.animate = function(layout) {
 
 Specimen.prototype.render = function() {
   const layout = this.horizontal_layout();
-  this.draw_layout(layout);
-  this.animate(layout);
+  const elements = this.draw_layout(layout);
+  this.animate(layout, elements);
 }
