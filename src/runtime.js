@@ -116,12 +116,11 @@ function evaluate_select(runtime_context, query_context, query_parts, old_row) {
   const old_offsets = cloneDeep(offsets[pq]);
   const old_stream_time = stream_time[pq];
 
-  const new_row = cloneDeep(old_row);
+  const new_row = { ...cloneDeep(old_row), ...{ id: uuidv4() } };
 
   set_new_stream(new_row, into);
   set_new_partition(query_context, new_row, partition_by);
 
-  old_row.id = uuidv4();
   new_row.vars.derived_id = old_row.id;
 
   swap_partitions(by_name, pack, pq, offsets, old_row, new_row);

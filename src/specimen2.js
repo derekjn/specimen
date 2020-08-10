@@ -11,6 +11,8 @@ import * as rt from "./runtime";
 import * as a from "./animate2";
 import * as graphlib from "graphlib";
 
+import anime from "animejs/lib/anime.es.js";
+
 import { uuidv4, inverse_map } from "./util";
 
 let data_fns = {
@@ -199,20 +201,36 @@ Specimen.prototype.animate = function(layout, elements) {
   const { free_el } = elements;
 
   let rt_context = rt.init_runtime(objs, data_fns);
+  const animation_context = a.init_animation_context();
+
+  let anime_commands = [];
+  let anime_callbacks = [];
 
   while (rt_context.drained != true) {
     const next_context = rt.tick(rt_context)
     const action = next_context.action;
+    const lineage = next_context.lineage;
 
     if (action) {
+      console.log("Before: " + action.before.row.id);
+      console.log("After: " + action.after.row.id);
+      
       a.update_layout(action, data_fns, this._styles, free_el);
       const action_animation_seq = a.animation_seq(action, data_fns, this._styles);
+      const action_anime_data = a.anime_data(animation_context, action_animation_seq, lineage, this._styles);
 
-      console.log(action_animation_seq);
+      anime_commands = anime_commands.concat(action_anime_data.commands);
+      anime_callbacks = anime_callbacks.concat(action_anime_data.callbacks);
     }
 
     rt_context = next_context;
   }
+
+  const timeline = anime.timeline({
+    autoplay: true
+  });
+
+  anime_commands.forEach(c => timeline.add(c.params, c.t));
 }
 
 Specimen.prototype.render = function() {
