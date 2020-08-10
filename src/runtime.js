@@ -21,7 +21,7 @@ function choose_lowest_timestamp(streams, offsets) {
   return choices.reduce((result, row) => {
     if (result == undefined) {
       return row;
-    } else if (row.t < result.t) {
+    } else if (row.vars.record.t < result.vars.record.t) {
       return row;
     } else {
       return result;

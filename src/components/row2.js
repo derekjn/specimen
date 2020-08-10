@@ -36,7 +36,6 @@ export function build_data(config, styles, computed) {
 export function render(data) {
   const { id, vars, rendering } = data;
 
-  console.log("Drawing: " + id);
   const rect = create_svg_el("rect");
   rect.id = id;
   rect.setAttributeNS(null, "x", rendering.x);

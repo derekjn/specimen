@@ -212,9 +212,6 @@ Specimen.prototype.animate = function(layout, elements) {
     const lineage = next_context.lineage;
 
     if (action) {
-      console.log("Before: " + action.before.row.id);
-      console.log("After: " + action.after.row.id);
-      
       a.update_layout(action, data_fns, this._styles, free_el);
       const action_animation_seq = a.animation_seq(action, data_fns, this._styles);
       const action_anime_data = a.anime_data(animation_context, action_animation_seq, lineage, this._styles);

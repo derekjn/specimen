@@ -12,8 +12,6 @@ function adjust_rendering(action, data_fns, styles) {
   const right_x = partition_data.refs.right_x + d_row_margin_left;
   const row_data = by_id(action.after.row.id);
 
-  console.log(action);
-
   row_data.rendering.x = right_x;
   pack(row_data);
 }
