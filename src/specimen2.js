@@ -156,35 +156,38 @@ Specimen.prototype.draw_layout = function(layout) {
   const svg_data = svg.build_data({}, this._styles, {});
   const svg_el = svg.render(svg_data);
 
-  const controls_data = controls.build_data({}, this._styles, {});
-  const controls_el = controls.render(controls_data);
-
-  const free_data = f.build_data({}, this._styles, {});
-  const free_el = f.render(free_data);
-
   layout.forEach(data => {
     const fn = rendering_fns[data.kind];
     const element = fn(data);
     svg_el.appendChild(element);
   });
 
-  svg_el.appendChild(free_el);
-
   const target = document.querySelector(this._container);
-  target.appendChild(controls_el);
   target.appendChild(svg_el);
 
-  qt.render(layout, this._styles, { target: svg_el });
+  const query_text_data = qt.build_data({}, this._styles, {});
+  qt.render(query_text_data, this._styles, {
+    target: svg_el,
+    layout: layout
+  });
 
-  return {
-    target_el: target,
-    svg_el,
-    free_el
-  };
+  const by_id = ci.index_by_id(layout);
+  ci.pack(svg_data, by_id);
+  ci.pack(query_text_data, by_id);
+
+  return by_id;
 }
 
-Specimen.prototype.animate = function(layout, elements) {
-  const by_id = ci.index_by_id(layout);
+Specimen.prototype.animate = function(by_id) {
+  let progress_el = undefined;
+  
+  const timeline = anime.timeline({
+    autoplay: false,
+    update: function(anim) {
+      progress_el.value = timeline.progress;
+    }
+  });
+
   const by_name = ci.index_by_name(by_id);
   const objs = Object.values(by_id)
 
@@ -198,7 +201,20 @@ Specimen.prototype.animate = function(layout, elements) {
     pack: pack
   };
 
-  const { free_el } = elements;
+  const target = document.querySelector(this._container);
+  const svg_el = document.getElementById(unpack_by_name("svg-container").id);
+
+  const query_text_el = document.getElementById(unpack_by_name("query-text").id);
+
+  const controls_data = controls.build_data({}, this._styles, { timeline: timeline });
+  const controls_el = controls.render(controls_data);
+
+  const free_data = f.build_data({}, this._styles, {});
+  const free_el = f.render(free_data);
+
+  svg_el.appendChild(free_el);
+  query_text_el.insertAdjacentElement("beforebegin", controls_el);
+  progress_el = document.getElementById(controls_data.rendering.progress.id);
 
   let rt_context = rt.init_runtime(objs, data_fns);
   const animation_context = a.init_animation_context();
@@ -223,15 +239,11 @@ Specimen.prototype.animate = function(layout, elements) {
     rt_context = next_context;
   }
 
-  const timeline = anime.timeline({
-    autoplay: true
-  });
-
   anime_commands.forEach(c => timeline.add(c.params, c.t));
 }
 
 Specimen.prototype.render = function() {
   const layout = this.horizontal_layout();
-  const elements = this.draw_layout(layout);
-  this.animate(layout, elements);
+  const by_id = this.draw_layout(layout);
+  this.animate(by_id);
 }

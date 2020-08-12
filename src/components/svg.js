@@ -6,6 +6,7 @@ export function build_data(config, styles, computed) {
   return {
     kind: "svg",
     id: uuidv4(),
+    name: "svg-container",
     rendering: {
       width: svg_width,
       height: svg_height

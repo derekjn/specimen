@@ -49,7 +49,7 @@ function swap_partitions(by_name, pack, pq, offsets, old_row, new_row) {
 
   const new_stream_data = by_name(new_stream_name);
   const new_partition_data = new_stream_data.children.partitions[new_partition];
-  
+
   new_row.vars.record.offset = new_partition_data.children.rows.length;
   new_partition_data.children.rows.push(new_row);
 

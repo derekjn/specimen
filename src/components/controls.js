@@ -1,6 +1,8 @@
 import { uuidv4 } from './../util';
 
 export function build_data(config, styles, computed) {
+  const { timeline } = computed;
+  
   return {
     kind: "controls",
     id: uuidv4(),
@@ -28,16 +30,19 @@ export function build_data(config, styles, computed) {
       progress: {
         id: uuidv4(),
         min: 0,
-        max: 0,
         start: 0,
         step: .001
       }
+    },
+    vars: {
+      timeline: timeline
     }
   };
 }
 
 export function render(data) {
-  const { id, rendering } = data;
+  const { id, rendering, vars } = data;
+  const { timeline } = vars;
 
   const div = document.createElement("div");
   div.id = id;
@@ -46,14 +51,17 @@ export function render(data) {
   const play = document.createElement("button");
   play.id = rendering.play.id;
   play.textContent = rendering.play.text;
+  play.onclick = timeline.play;
 
   const pause = document.createElement("button");
   pause.id = rendering.pause.id;
   pause.textContent = rendering.pause.text;
+  pause.onclick = timeline.pause;
 
   const restart = document.createElement("button");
   restart.id = rendering.restart.id;
   restart.textContent = rendering.restart.text;
+  restart.onclick = timeline.restart;
 
   const manual_left = document.createElement("button");
   manual_left.id = rendering.manual_left.id;
@@ -64,11 +72,21 @@ export function render(data) {
   manual_right.textContent = rendering.manual_right.text;
 
   const progress = document.createElement("input");
+  progress.id = rendering.progress.id;
   progress.setAttribute("type", "range");
   progress.setAttribute("min", rendering.progress.min);
-  progress.setAttribute("max", rendering.progress.max);
   progress.setAttribute("step", rendering.progress.step);
   progress.setAttribute("value", rendering.progress.start);
+  progress.oninput = () => {
+    const t = timeline.duration * (progress.valueAsNumber / 100);
+    timeline.pause();
+    timeline.seek(t);
+
+    // Prevent sliding to end and back to middle completing the animation.
+    if (t != timeline.duration) {
+      timeline.completed = false;
+    }
+  };
 
   div.appendChild(play);
   div.appendChild(pause);

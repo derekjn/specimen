@@ -20,8 +20,13 @@ export function init_animation_context() {
 }
 
 export function update_layout(action, data_fns, styles, free_el) {
+  const { by_id } = data_fns;
+  
   const layout_fn = update_layout_fns[action.kind];
   layout_fn(action, data_fns, styles, free_el);
+
+  // The layout has mutated, so this row needs to be refreshed.
+  action.after.row = by_id(action.after.row.id);
 }
 
 export function animation_seq(action, data_fns, styles) {

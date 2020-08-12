@@ -1,4 +1,14 @@
+import { uuidv4 } from './../util';
+
 const code_padding = 20;
+
+export function build_data(config, styles, computed) {
+  return {
+    kind: "query-text",
+    id: uuidv4(),
+    name: "query-text"
+  };
+}
 
 function make_code_container(code) {
   const new_code = document.createElement("code");
@@ -21,8 +31,9 @@ function make_code_container(code) {
   };
 }
 
-function make_parent_container(children) {
+function make_parent_container(id, children) {
   const new_div = document.createElement("div");
+  new_div.id = id;
   new_div.style.position = "relative";
   new_div.classList.add("pq-code-container");
 
@@ -51,13 +62,14 @@ function set_pre_transform(pq, { pre }, svg_width) {
   pre.style.transform = `translateX(${x}px)`;
 }
 
-export function render(layout, styles, computed) {
+export function render(data, styles, computed) {
+  const { id } = data;
   const { svg_width } = styles;
-  const { target } = computed;
+  const { layout, target } = computed;
 
   const pqs = layout.filter(component => component.kind == "persistent_query");
   const children = pqs.map(pq => make_code_container(pq.vars.query_text));
-  const parent = make_parent_container(children);
+  const parent = make_parent_container(id, children);
 
   target.insertAdjacentElement("beforebegin", parent);
 

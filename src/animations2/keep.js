@@ -44,6 +44,7 @@ export function animation_seq(action, data_fns, styles) {
   const pq_enter_y = pq_data.refs.midpoint_y;
   const pq_exit_x = pq_data.refs.right_x;
 
+  const after_part_right_x = after_part_data.refs.right_x;
   const after_part_left_x = after_part_data.refs.left_x;
 
   const appear_x = after.row.rendering.x;
@@ -59,9 +60,9 @@ export function animation_seq(action, data_fns, styles) {
   const move_to_partition_center_x = after_part_left_x - d_row_enter_offset;
   const move_to_partition_center_y = after_part_data.refs.midpoint_y - (row_height / 2);
 
-  const after_part_margin = (after_record.offset - 1) * row_margin_left;
+  const after_part_margin = after_record.offset * row_margin_left;
   const after_part_spacing = after_record.offset * row_width;
-  const enter_partition_x = after_part_left_x - after_part_margin - row_offset_right - after_part_spacing - row_width;
+  const enter_partition_x = after_part_right_x - after_part_margin - row_offset_right - after_part_spacing - row_width;
 
   return {
     kind: "keep",
