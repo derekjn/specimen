@@ -3,6 +3,8 @@ import * as c from './consumer-marker2';
 import { uuidv4, create_svg_el } from './../util';
 
 function build_consumer_markers_data(partition, pqs, styles, computed) {
+  const { row_width, row_offset_right } = styles;
+  const { consumer_m_margin_right, consumer_m_offset_bottom } = styles;
   const { right_x, bottom_y } = computed;
 
   let this_bottom_y = bottom_y;
@@ -11,8 +13,8 @@ function build_consumer_markers_data(partition, pqs, styles, computed) {
   pqs.forEach(pq_name => {
     const config = { partition, pq_name };
     const marker = c.build_data(config, styles, {
-      left_x: right_x,
-      bottom_y: this_bottom_y
+      left_x: right_x - row_offset_right - (row_width / 2) - consumer_m_margin_right,
+      bottom_y: this_bottom_y - consumer_m_offset_bottom
     });
 
     result.push(marker);
@@ -20,6 +22,13 @@ function build_consumer_markers_data(partition, pqs, styles, computed) {
   });
 
   return result;
+}
+
+function index_consumer_markers(consumer_markers_data) {
+  return consumer_markers_data.reduce((all, marker) => {
+    all[marker.vars.pq_name] = marker.id;
+    return all;
+  }, {});
 }
 
 function find_top_y(consumer_markers_data, top_y) {
@@ -58,10 +67,11 @@ export function build_data(config, styles, computed) {
 
   const consumer_markers_data = build_consumer_markers_data(partition, successors, styles, {
     right_x: right_x,
-    bottom_y: top_y
+    bottom_y: midpoint_y - (row_height / 2)
   });
 
   const absolute_top_y = find_top_y(consumer_markers_data, top_y);
+  const indexed_markers = index_consumer_markers(consumer_markers_data);
 
   return {
     kind: "partition",
@@ -99,7 +109,8 @@ export function build_data(config, styles, computed) {
       }
     },
     vars: {
-      partition_id: partition
+      partition_id: partition,
+      indexed_consumer_markers: indexed_markers
     },
     refs: {
       top_y: absolute_top_y,

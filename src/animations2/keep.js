@@ -32,9 +32,14 @@ export function update_layout(action, data_fns, styles, free_el) {
 
 export function animation_seq(action, data_fns, styles) {
   const { before, after, processed_by } = action;
-  const { by_id, by_name } = data_fns;
+  const { by_id, by_name, pack } = data_fns;
   const { row_width, row_height, row_offset_right, row_margin_left } = styles;
   const { d_row_enter_offset } = styles;
+  const { consumer_m_margin_right } = styles;
+
+  const before_record = before.row.vars.record;
+  const before_stream_data = by_name(before_record.stream);
+  const before_part_data = before_stream_data.children.partitions[before_record.partition];
 
   const after_record = after.row.vars.record;
   const after_stream_data = by_name(after_record.stream);
@@ -64,6 +69,23 @@ export function animation_seq(action, data_fns, styles) {
   const after_part_margin = after_record.offset * row_margin_left;
   const after_part_spacing = after_record.offset * row_width;
   const enter_partition_x = after_part_right_x - after_part_margin - row_offset_right - after_part_spacing - row_width;
+  
+  const consumer_marker_id = before_part_data.vars.indexed_consumer_markers[processed_by];
+  const consumer_marker_data = by_id(consumer_marker_id);
+  const derived_row_data = by_id(after.row.vars.derived_id);
+
+  const consumer_marker_before_x = consumer_marker_data.rendering.left_x;
+  const consumer_marker_after_x = derived_row_data.rendering.x + (row_width / 2) - consumer_m_margin_right;
+
+  // If the offset is 0, it's a reasonable proxy that this is the first
+  // record in the partition, so it's time to unveil the consumer marker.
+  let consumer_marker_opacity = undefined;
+  if (before_record.offset == 0) {
+    consumer_marker_opacity = [0, 1];
+  }
+
+  consumer_marker_data.rendering.left_x = consumer_marker_after_x;
+  pack(consumer_marker_data);
 
   return {
     kind: "keep",
@@ -94,10 +116,10 @@ export function animation_seq(action, data_fns, styles) {
       enter_partition: {
         translateX: (enter_partition_x - move_to_partition_center_x)
       },
-      // move_consumer_marker: {
-      //   translateX: (consumer_marker_old_x - consumer_marker_new_x),
-      //   opacity: consumer_marker_opacity
-      // }
+      move_consumer_marker: {
+        translateX: (consumer_marker_before_x - consumer_marker_after_x),
+        opacity: consumer_marker_opacity
+      }
     }
   };
 }
@@ -105,6 +127,7 @@ export function animation_seq(action, data_fns, styles) {
 export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles) {
   const { t, history } = ctx;
   const { action, animations } = action_animation_seq;
+  const { by_name, by_id } = data_fns;
   const { ms_px } = styles;
 
   const pq_t = (t[action.processed_by] || 0);
@@ -118,6 +141,8 @@ export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles)
   const depart_pq_ms = ms_for_translate(animations.depart_pq, ms_px);
   const move_to_partition_center_ms = ms_for_translate(animations.move_to_partition_center, ms_px);
   const enter_partition_ms = ms_for_translate(animations.enter_partition, ms_px);
+
+  const consumer_marker_ms = ms_for_translate(animations.move_consumer_marker, ms_px);
 
   const row_movement = {
     t: t_offset,
@@ -173,13 +198,31 @@ export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles)
       enter_partition_ms
   );
 
+  const before_record = action.before.row.vars.record;
+  const before_stream_data = by_name(before_record.stream);
+  const before_part_data = before_stream_data.children.partitions[before_record.partition];
+  const consumer_marker_id = before_part_data.vars.indexed_consumer_markers[action.processed_by];
+
+  const consumer_marker_movement = {
+    t: (t_offset + appear_ms + move_to_pq_center_ms + approach_pq_ms),
+    params: {
+      targets: `#${consumer_marker_id}`,
+      easing: "linear",
+      keyframes: [
+        {
+          duration: 1,
+          opacity: animations.move_consumer_marker.opacity
+        },
+        {
+          duration: consumer_marker_ms,
+          translateX: relative_sub(animations.move_consumer_marker.translateX)
+        }
+      ]
+    }
+  };
+
   const update_stream_time = {
-    t: (
-      t_offset +
-        appear_ms +
-        move_to_pq_center_ms +
-        approach_pq_ms
-    ),
+    t: (t_offset + appear_ms + move_to_pq_center_ms + approach_pq_ms),
     apply: function() {
       c.update_stream_time_text(data_fns, action.processed_by, action.after);
     },
@@ -189,12 +232,7 @@ export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles)
   };
 
   const update_pq_offsets = {
-    t: (
-      t_offset +
-        appear_ms +
-        move_to_pq_center_ms +
-        approach_pq_ms
-    ),
+    t: (t_offset + appear_ms + move_to_pq_center_ms + approach_pq_ms),
     apply: function() {
       c.update_pq_offsets(data_fns, action.processed_by, action.after.offsets);
     },
@@ -205,7 +243,8 @@ export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles)
 
   return {
     commands: [
-      row_movement
+      row_movement,
+      consumer_marker_movement
     ],
     callbacks: [
       update_stream_time,

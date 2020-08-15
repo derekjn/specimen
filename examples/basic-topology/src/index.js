@@ -21,7 +21,7 @@ function example(container) {
     row_width: 15,
     row_height: 15,
     row_margin_left: 8,
-    row_offset_right: 10,
+    row_offset_right: 10
   };
 
   const s = new Specimen(container, styles);

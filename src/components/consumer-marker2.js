@@ -4,15 +4,13 @@ export function build_data(config, styles, computed) {
   const { partition, pq_name } = config;
 
   const {
-    consumer_m_init_margin_left,
     consumer_m_text_margin_bottom,
-    consumer_m_offset_bottom,
   } = styles;
 
   const { left_x, bottom_y } = computed;
 
-  const x = (left_x + consumer_m_init_margin_left);
-  const arrow_y = (bottom_y - consumer_m_offset_bottom);
+  const x = left_x
+  const arrow_y = bottom_y;
   const text_y = (arrow_y - consumer_m_text_margin_bottom);
 
   return {
