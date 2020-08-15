@@ -2,11 +2,7 @@ import { uuidv4, create_svg_el } from './../util';
 
 export function build_data(config, styles, computed) {
   const { partition, pq_name } = config;
-
-  const {
-    consumer_m_text_margin_bottom,
-  } = styles;
-
+  const { consumer_m_text_margin_bottom } = styles;
   const { left_x, bottom_y } = computed;
 
   const x = left_x

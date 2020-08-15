@@ -38,7 +38,7 @@ export const styles = {
 
   consumer_m_text_margin_bottom: 15,
   consumer_m_offset_bottom: 5,
-  consumer_m_margin_bottom: 10,
+  consumer_m_margin_bottom: 15,
   consumer_m_margin_right: 3,
 
   seek_ms: 25,

@@ -69,6 +69,10 @@ export function animation_seq(action, data_fns, styles) {
   const after_part_margin = after_record.offset * row_margin_left;
   const after_part_spacing = after_record.offset * row_width;
   const enter_partition_x = after_part_right_x - after_part_margin - row_offset_right - after_part_spacing - row_width;
+
+  after.row.rendering.x = enter_partition_x;
+  after.row.rendering.y = move_to_partition_center_y;
+  pack(after.row);
   
   const consumer_marker_id = before_part_data.vars.indexed_consumer_markers[processed_by];
   const consumer_marker_data = by_id(consumer_marker_id);

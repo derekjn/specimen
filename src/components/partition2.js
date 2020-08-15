@@ -4,21 +4,21 @@ import { uuidv4, create_svg_el } from './../util';
 
 function build_consumer_markers_data(partition, pqs, styles, computed) {
   const { row_width, row_offset_right } = styles;
-  const { consumer_m_margin_right, consumer_m_offset_bottom } = styles;
+  const { consumer_m_margin_right, consumer_m_offset_bottom, consumer_m_margin_bottom } = styles;
   const { right_x, bottom_y } = computed;
 
-  let this_bottom_y = bottom_y;
+  let this_bottom_y = bottom_y - consumer_m_offset_bottom;
   const result = [];
 
   pqs.forEach(pq_name => {
     const config = { partition, pq_name };
     const marker = c.build_data(config, styles, {
       left_x: right_x - row_offset_right - (row_width / 2) - consumer_m_margin_right,
-      bottom_y: this_bottom_y - consumer_m_offset_bottom
+      bottom_y: this_bottom_y
     });
 
     result.push(marker);
-    this_bottom_y += marker.refs.top_y;
+    this_bottom_y = marker.refs.top_y - consumer_m_margin_bottom;
   });
 
   return result;

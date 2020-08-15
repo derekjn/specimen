@@ -3,7 +3,7 @@ import { Specimen } from '../../../src/index';
 function example(container) {
   const styles = {
     svg_width: 1200,
-    svg_height: 500,
+    svg_height: 800,
 
     pq_width: 150,
     pq_height: 150,
@@ -15,6 +15,7 @@ function example(container) {
     part_width: 200,
     part_height: 50,
     part_bracket_len: 10,
+    part_margin_bottom: 20,
     part_id_margin_left: -15,
     part_id_margin_top: 8,
 
@@ -85,6 +86,44 @@ function example(container) {
 
   s.add_child(["pq1"], {
     name: "s2",
+    kind: "stream",
+    partitions: [
+      [],
+      [],
+      [],
+      []
+    ]
+  });
+
+  s.add_child(["s2"], {
+    name: "pq2",
+    kind: "persistent_query",
+    into: "s3",
+    query_text: [
+      "CREATE STREAM s2 AS",
+      "  SELECT col1, FLOOR(col2) AS f",
+      "  FROM s1",
+      "  WHERE col3 != 'foo'",
+      "  EMIT CHANGES;"
+    ],
+    // where: function(context, row) {
+    //   return row.value != 41 && row.value != 42;
+    // },
+    style: {
+      fill: function(old_row, new_row) {
+        const flavors = [
+          "#38CCED",
+          "#0074A2",
+          "#829494",
+          "#D8365D"
+        ];
+        return flavors[old_row.value % flavors.length];
+      }
+    }
+  });  
+
+  s.add_child(["pq2"], {
+    name: "s3",
     kind: "stream",
     partitions: [
       [],
