@@ -1,4 +1,4 @@
-import * as p from './partition2';
+import * as p from './partition';
 import * as sl from './stream-label';
 import { uuidv4, create_svg_el } from './../util';
 

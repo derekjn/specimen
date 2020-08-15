@@ -1,5 +1,5 @@
-import * as r from './row2';
-import * as c from './consumer-marker2';
+import * as r from './row';
+import * as c from './consumer-marker';
 import { uuidv4, create_svg_el } from './../util';
 
 function build_consumer_markers_data(partition, pqs, styles, computed) {

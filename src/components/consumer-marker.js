@@ -1,85 +1,55 @@
-import { uuidv4 } from './../util';
-import $ from 'jquery';
+import { uuidv4, create_svg_el } from './../util';
 
-function build_consumer_marker_data(consumer, styles, computed) {
-  const { name, collection, partition } = consumer;
+export function build_data(config, styles, computed) {
+  const { partition, pq_name } = config;
+  const { consumer_m_text_margin_bottom } = styles;
+  const { left_x, bottom_y } = computed;
 
-  const { dynamic_target } = styles;
-  const {
-    consumer_m_init_margin_left,
-    consumer_m_text_margin_bottom,
-    consumer_m_offset_bottom,
-    consumer_m_margin_bottom
-  } = styles;
-
-  const { left_x, top_y } = computed;
-
-  const x = (left_x + consumer_m_init_margin_left);
-  const arrow_y = (top_y - consumer_m_offset_bottom);
+  const x = left_x
+  const arrow_y = bottom_y;
   const text_y = (arrow_y - consumer_m_text_margin_bottom);
 
   return {
-    data: {
-      kind: "consumer_marker",
-      id: uuidv4(),
-      name: name,
-      collection: collection,
-      partition: partition,
-      container: dynamic_target,
-      x: x,
+    kind: "consumer_marker",
+    id: uuidv4(),
+    rendering: {
+      left_x: x,
       arrow_y: arrow_y,
       text_y: text_y
     },
-    state: {
+    vars: {
+      partition: partition,
+      pq_name: pq_name,
+      arrow: "↓"
+    },
+    refs: {
       top_y: text_y
     }
   };
 }
 
-export function render_consumer_marker(data) {
-  const { id, name, collection, partition } = data;
-  const { container, x, arrow_y, text_y } = data;
+export function render(data) {
+  const { id, vars, rendering } = data;
 
-  const html = `
-<g class="coll-${collection} partition-${partition} consumer-${name} id-${id}">
-    <text x="${x}" y="${text_y}" text-anchor="middle" class="code">${name}</text>
-    <text x="${x}" y="${arrow_y}" class="code">↓</text>
-</g>
-`;
+  const g = create_svg_el("g");
+  g.id = id;
+  g.setAttributeNS(null, "data-partition", vars.partition);
 
-  $("." + container).append(html);  
-}
+  const arrow_text = create_svg_el("text");
+  arrow_text.setAttributeNS(null, "x", rendering.left_x);
+  arrow_text.setAttributeNS(null, "y", rendering.arrow_y);
+  arrow_text.classList.add("code");
+  arrow_text.textContent = vars.arrow;
 
-export function build_consumer_markers_data(layout_index, consumer_graph, styles) {
-  const { consumer_m_margin_bottom } = styles;
-  let result = {};
+  const consumer_text = create_svg_el("text");
+  consumer_text.setAttributeNS(null, "x", rendering.left_x);
+  consumer_text.setAttributeNS(null, "y", rendering.text_y);
+  consumer_text.setAttributeNS(null, "text-anchor", "middle");
+  consumer_text.classList.add("code");
+  consumer_text.textContent = vars.pq_name;
 
-  Object.entries(consumer_graph).forEach(([coll, partitions]) => {
-    result[coll] = {};
+  g.appendChild(consumer_text);
+  g.appendChild(arrow_text);
 
-    Object.entries(partitions).forEach(([partition, pqs]) => {
-      const left_x = ((layout_index[coll].partitions[partition]).right_x - (styles.row_offset_right));
-      let top_y = (layout_index[coll].partitions[partition].midpoint_y) - (styles.row_height / 2);
-
-      if (pqs.length > 0) {
-        result[coll][partition] = {};
-      }
-
-      pqs.forEach(pq => {
-        const consumer = {
-          name: pq,
-          collection: coll,
-          partition: partition
-        };
-
-        const computed = { left_x: left_x, top_y: top_y };
-        const { data, state } = build_consumer_marker_data(consumer, styles, computed);
-
-        result[coll][partition][pq] = data;
-        top_y = state.top_y - consumer_m_margin_bottom;
-      });
-    });
-  });
-
-  return result;
+  return g;
 }
