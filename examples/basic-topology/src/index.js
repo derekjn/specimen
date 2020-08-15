@@ -109,16 +109,8 @@ function example(container) {
     // where: function(context, row) {
     //   return row.value != 41 && row.value != 42;
     // },
-    style: {
-      fill: function(old_row, new_row) {
-        const flavors = [
-          "#38CCED",
-          "#0074A2",
-          "#829494",
-          "#D8365D"
-        ];
-        return flavors[old_row.value % flavors.length];
-      }
+    partition_by: function(context, before_row, after_row) {
+      return before_row.value;
     }
   });  
 

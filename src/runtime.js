@@ -86,11 +86,11 @@ function set_new_stream(new_row, into) {
   new_row.vars.record.stream = into;
 }
 
-function set_new_partition(context, new_row, partition_by) {
+function repartition(context, before_row, after_row, partition_by) {
   if (partition_by) {
-    const key = partition_by(context, new_row);
-    new_row.vars.record.key = key;
-    new_row.vars.record.partition = key % context.partitions;
+    const key = partition_by(context, before_row.vars.record, after_row.vars.record);
+    after_row.vars.record.key = key;
+    after_row.vars.record.partition = key % context.partitions;
   }
 }
 
@@ -109,38 +109,38 @@ function update_stream_time(stream_time, pq, t) {
   }
 }
 
-function evaluate_select(runtime_context, query_context, query_parts, old_row) {
+function evaluate_select(runtime_context, query_context, query_parts, before_row) {
   const { by_name, pack, pq, offsets, stream_time, lineage } = runtime_context;
   const { into, partition_by } = query_parts;
 
-  const old_offsets = cloneDeep(offsets[pq]);
-  const old_stream_time = stream_time[pq];
+  const before_offsets = cloneDeep(offsets[pq]);
+  const before_stream_time = stream_time[pq];
 
-  const new_row = { ...cloneDeep(old_row), ...{ id: uuidv4() } };
+  const after_row = { ...cloneDeep(before_row), ...{ id: uuidv4() } };
 
-  set_new_stream(new_row, into);
-  set_new_partition(query_context, new_row, partition_by);
+  set_new_stream(after_row, into);
+  repartition(query_context, before_row, after_row, partition_by);
 
-  new_row.vars.derived_id = old_row.id;
+  after_row.vars.derived_id = before_row.id;
 
-  swap_partitions(by_name, pack, pq, offsets, old_row, new_row);
-  update_stream_time(stream_time, pq, old_row.vars.record.t);
+  swap_partitions(by_name, pack, pq, offsets, before_row, after_row);
+  update_stream_time(stream_time, pq, before_row.vars.record.t);
 
-  if (old_row.vars.derived_id) {
-    lineage[old_row.id] = old_row.vars.derived_id;
+  if (before_row.vars.derived_id) {
+    lineage[before_row.id] = before_row.vars.derived_id;
   } else {
-    old_row.vars.derived_id = old_row.vars.source_id;
+    before_row.vars.derived_id = before_row.vars.source_id;
   }
 
   return {
     kind: "keep",
     before: {
-      row: old_row,
-      offsets: old_offsets,
-      stream_time: old_stream_time
+      row: before_row,
+      offsets: before_offsets,
+      stream_time: before_stream_time
     },
     after: {
-      row: new_row,
+      row: after_row,
       offsets: cloneDeep(offsets[pq]),
       stream_time: stream_time[pq]
     },

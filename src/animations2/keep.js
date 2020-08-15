@@ -72,8 +72,20 @@ export function animation_seq(action, data_fns, styles) {
 
   after.row.rendering.x = enter_partition_x;
   after.row.rendering.y = move_to_partition_center_y;
+
+
+  const before_fill = action.before.row.rendering.fill;
+  let after_fill = undefined;
+
+  if(pq_data.rendering.style.fill) {
+    after_fill = pq_data.rendering.style.fill(before_record, after_record);
+    after.row.rendering.fill = after_fill;
+  }
+
+  const fill_change = [before_fill, after_fill || before_fill];
+
   pack(after.row);
-  
+
   const consumer_marker_id = before_part_data.vars.indexed_consumer_markers[processed_by];
   const consumer_marker_data = by_id(consumer_marker_id);
   const derived_row_data = by_id(after.row.vars.derived_id);
@@ -96,8 +108,6 @@ export function animation_seq(action, data_fns, styles) {
     action: action,
     animations: {
       appear: {
-        // Unclear if still needed
-        //fill: by_id(///dynamic_elements[old_row.derived_id].fill
       },
       move_to_pq_center: {
         translateX: (move_to_pq_center_x - appear_x),
@@ -108,7 +118,7 @@ export function animation_seq(action, data_fns, styles) {
       },
       traverse_pq: {
         translateX: (traverse_pq_x - approach_pq_x),
-//        fill: fill_change
+        fill: fill_change
       },
       depart_pq: {
         translateX: (depart_pq_x - traverse_pq_x)
@@ -156,8 +166,7 @@ export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles)
       keyframes: [
         {
           duration: appear_ms,
-          opacity: [0, 1],
-//          fill: animations.appear.fill
+          opacity: [0, 1]
         },
         {
           duration: move_to_pq_center_ms,
@@ -171,7 +180,7 @@ export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles)
         {
           duration: traverse_pq_ms,
           translateX: relative_add(animations.traverse_pq.translateX),
-//          fill: animations.traverse_pq.fill,
+          fill: animations.traverse_pq.fill,
         },
         {
           duration: depart_pq_ms,
