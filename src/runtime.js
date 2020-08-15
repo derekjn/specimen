@@ -1,4 +1,4 @@
-import { select_keys, uuidv4, cycle_array } from './util';
+import { uuidv4, cycle_array } from './util';
 import cloneDeep from "lodash/cloneDeep";
 
 function choose_lowest_timestamp(streams, offsets) {
@@ -43,20 +43,20 @@ function is_drained(offsets, by_name) {
   });
 }
 
-function swap_partitions(by_name, pack, pq, offsets, old_row, new_row) {
-  const new_stream_name = new_row.vars.record.stream;
-  const new_partition = new_row.vars.record.partition;
+function swap_partitions(by_name, pack, pq, offsets, before_row, after_row) {
+  const after_stream_name = after_row.vars.record.stream;
+  const after_partition = after_row.vars.record.partition;
 
-  const new_stream_data = by_name(new_stream_name);
-  const new_partition_data = new_stream_data.children.partitions[new_partition];
+  const after_stream_data = by_name(after_stream_name);
+  const after_partition_data = after_stream_data.children.partitions[after_partition];
 
-  new_row.vars.record.offset = new_partition_data.children.rows.length;
-  new_partition_data.children.rows.push(new_row);
+  after_row.vars.record.offset = after_partition_data.children.rows.length;
+  after_partition_data.children.rows.push(after_row);
 
-  const old_offset = offsets[pq][old_row.vars.record.stream][old_row.vars.record.partition];
-  offsets[pq][old_row.vars.record.stream][old_row.vars.record.partition] = old_offset + 1;
+  const before_offset = offsets[pq][before_row.vars.record.stream][before_row.vars.record.partition];
+  offsets[pq][before_row.vars.record.stream][before_row.vars.record.partition] = before_offset + 1;
 
-  pack(new_partition_data);
+  pack(after_partition_data);
 }
 
 function initialize_offsets(pqs, streams, by_name) {
@@ -82,8 +82,8 @@ function initialize_offsets(pqs, streams, by_name) {
   }, {});
 }
 
-function set_new_stream(new_row, into) {
-  new_row.vars.record.stream = into;
+function set_after_stream(after_row, into) {
+  after_row.vars.record.stream = into;
 }
 
 function repartition(context, before_row, after_row, partition_by) {
@@ -117,11 +117,10 @@ function evaluate_select(runtime_context, query_context, query_parts, before_row
   const before_stream_time = stream_time[pq];
 
   const after_row = { ...cloneDeep(before_row), ...{ id: uuidv4() } };
-
-  set_new_stream(after_row, into);
-  repartition(query_context, before_row, after_row, partition_by);
-
   after_row.vars.derived_id = before_row.id;
+
+  set_after_stream(after_row, into);
+  repartition(query_context, before_row, after_row, partition_by);
 
   swap_partitions(by_name, pack, pq, offsets, before_row, after_row);
   update_stream_time(stream_time, pq, before_row.vars.record.t);
@@ -148,32 +147,40 @@ function evaluate_select(runtime_context, query_context, query_parts, before_row
   };
 }
 
-function execute_filter(runtime_context, query_context, query_parts, old_row) {
-  const { offsets, stream_time, pq } = runtime_context;
+function execute_filter(runtime_context, query_context, query_parts, before_row) {
+  const { offsets, stream_time, pq, pack } = runtime_context;
 
-  const old_offsets = cloneDeep(offsets[pq]);
-  const old_stream_time = stream_time[pq];
+  const before_record = before_row.vars.record;
+  const before_offsets = cloneDeep(offsets[pq]);
+  const before_stream_time = stream_time[pq];
 
-  old_row.id = uuidv4();
-  offsets[pq][old_row.stream][old_row.partition]++;
-  update_stream_time(stream_time, pq, old_row.t);
+  offsets[pq][before_record.stream][before_record.partition]++;
+  update_stream_time(stream_time, pq, before_row.vars.record.t);
 
-  if (old_row.derived_id) {
-    lineage[old_row.id] = old_row.derived_id;
+  const after_row = { ...cloneDeep(before_row), ...{ id: uuidv4() } };
+  after_row.vars.derived_id = before_row.id;
+  pack(after_row);
+
+  if (before_row.vars.derived_id) {
+    lineage[before_row.id] = before_row.vars.derived_id;
   } else {
-    old_row.derived_id = old_row.source_id;
+    before_row.vars.derived_id = before_row.vars.source_id;
   }
 
   return {
     kind: "discard",
-    old_row: old_row,
-    from: old_row.stream,
-    processed_by: pq,
-    new_offsets: cloneDeep(offsets[pq]),
-    old_offsets: old_offsets,
-    old_stream_time: old_stream_time,
-    new_stream_time: stream_time[pq]
-  };
+    before: {
+      row: before_row,
+      offsets: before_offsets,
+      stream_time: before_stream_time
+    },
+    after: {
+      row: after_row,
+      offsets: cloneDeep(offsets[pq]),
+      stream_time: stream_time[pq]
+    },
+    processed_by: pq
+  }
 }
 
 export function init_runtime(objs, data_fns) {
@@ -208,7 +215,7 @@ export function tick(rt_context) {
     const parent_stream_names = pq_data.graph.predecessors;
     const parent_streams = parent_stream_names.map(s => by_name(s));
 
-    const old_row = choose_lowest_timestamp(parent_streams, offsets[pq]);
+    const before_row = choose_lowest_timestamp(parent_streams, offsets[pq]);
 
     const runtime_context = {
       by_name,
@@ -219,7 +226,7 @@ export function tick(rt_context) {
       lineage
     };
 
-    if (old_row) {
+    if (before_row) {
       const query_parts = pq_data.vars.query_parts;
       const sink_data = by_name(query_parts.into);
       const sink_partitions = sink_data.children.partitions;
@@ -228,7 +235,15 @@ export function tick(rt_context) {
         partitions: sink_partitions.length
       };
 
-      action = evaluate_select(runtime_context, query_context, query_parts, old_row);
+      if (query_parts.where) {
+        if (query_parts.where(query_context, before_row.vars.record)) {
+          action = evaluate_select(runtime_context, query_context, query_parts, before_row);
+        } else {
+          action = execute_filter(runtime_context, query_context, query_parts, before_row);
+        }
+      } else {
+        action = evaluate_select(runtime_context, query_context, query_parts, before_row);
+      }
     }
 
     pq_seq = cycle_array(pq_seq);

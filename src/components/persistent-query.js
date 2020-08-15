@@ -125,6 +125,7 @@ export function build_data(config, styles, computed) {
     refs: {
       top_y: absolute_top_y,
       bottom_y: stream_time_data.refs.bottom_y,
+      box_bottom_y: box_bottom_y,
       midpoint_y: box_bottom_y - (pq_height / 2),
       left_x: left_x,
       right_x: right_x,

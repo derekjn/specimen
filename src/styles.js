@@ -35,6 +35,7 @@ export const styles = {
 
   d_row_margin_left: 10,
   d_row_enter_offset: 30,
+  d_row_appear_ms: 250,
 
   consumer_m_text_margin_bottom: 15,
   consumer_m_offset_bottom: 5,

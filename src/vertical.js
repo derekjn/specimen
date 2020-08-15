@@ -64,6 +64,7 @@ function persistent_query_translate_y(data, height) {
 
   data.refs.midpoint_y += height;
   data.refs.bottom_y += height;
+  data.refs.box_bottom_y += height;
 
   data.children.source_partitions.forEach(partition => {
     partition.rendering.y += height;
