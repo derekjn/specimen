@@ -1,82 +1,72 @@
-import { uuidv4 } from './../util';
-import $ from 'jquery';
+import { uuidv4, create_svg_el } from './../util';
+import * as sp from './source-partition';
+import * as st from './stream-time';
 
-function build_stream_time_data({ left_x, top_y, margin }) {
-  const y = top_y + margin;
-  return {
-    data: {
-      id: uuidv4(),
-      x: left_x,
-      y: y
-    },
-    state: {
-      bottom_y: y
-    }
-  };
-}
+function build_source_partitions_data(arr, styles, computed) {
+  const { left_x, top_y, margin } = computed;
+  let current_top_y = top_y;
 
-function build_source_partition_data(config, { left_x, top_y, margin }) {
-  const partitions = Object.entries(config).reduce((all, [coll, partitions]) => {
+  return Object.entries(arr).reduce((all, [stream, partitions]) => {
     partitions.forEach(partition => {
-      const data = {
-        collection: coll,
-        partition: partition,
-        x: left_x,
-        y: top_y
+      const this_top_y = current_top_y;
+
+      const config = {
+        stream: stream,
+        partition: partition
       };
 
-      top_y += margin;
-      all.push(data);
+      const this_computed = {
+        left_x: left_x,
+        top_y: this_top_y,
+        bottom_margin: margin
+      };
+
+      all.push(sp.build_data(config, styles, this_computed));
+      current_top_y += margin;
     });
 
     return all;
   }, []);
-
-  return {
-    data: {
-      source_partitions: partitions
-    },
-    state: {
-      bottom_y: top_y
-    }
-  };
 }
 
-export function build_persistent_query_data(config, styles, computed) {
-  const { name, query_text, style: pq_style } = config;
-  const { svg_target } = styles;
+export function build_data(config, styles, computed) {
+  const { name, source_partitions, query_text, style: pq_style } = config;
+  const { into, where, partition_by } = config;
+
   const { pq_width, pq_height, pq_margin_top, pq_bracket_len } = styles;
   const { pq_label_margin_left, pq_label_margin_bottom } = styles;
   const { pq_metadata_offset_top, pq_metadata_margin_top } = styles;
-  const { top_y, midpoint_x, source_partitions } = computed;
 
-  const this_top_y = top_y + pq_margin_top;
-  const box_bottom_y = this_top_y + pq_height;
+  const { predecessors, successors, top_y, midpoint_x } = computed;
+
+  const absolute_top_y = top_y + pq_margin_top;
+  let top_y_slide = absolute_top_y;
+
+  const box_bottom_y = top_y_slide + pq_height;
   const left_x = midpoint_x - (pq_width / 2);
   const right_x = midpoint_x + (pq_width / 2);
-  const line_bottom_y = this_top_y - 5;
+  const line_bottom_y = top_y_slide - 5;
   const b_len = pq_bracket_len;
 
   const metadata_top_y = box_bottom_y + pq_metadata_offset_top;
-  const sp_computed = {
+  const source_partitions_data = build_source_partitions_data(source_partitions, styles, {
     left_x: left_x,
     top_y: metadata_top_y,
     margin: pq_metadata_margin_top
-  };
-  const { data: sp_data, state: sp_state } = build_source_partition_data(source_partitions, sp_computed);
+  });
 
-  const stream_time_computed = {
+  top_y_slide = source_partitions_data.slice(-1)[0].refs.bottom_y + pq_metadata_offset_top;
+  const stream_time_data = st.build_data({}, styles, {
     left_x: left_x,
-    top_y: sp_state.bottom_y,
-    margin: pq_metadata_margin_top
-  };
-  const { data: st_data, state: st_state } = build_stream_time_data(stream_time_computed);
+    top_y: top_y_slide,
+    bottom_margin: pq_metadata_margin_top
+  });
 
   return {
-    data: {
-      kind: "persistent_query",
-      query_text: query_text,
-      style: pq_style || {},
+    kind: "persistent_query",
+    id: uuidv4(),
+    name: name,
+    rendering: {
       line: {
         x1: midpoint_x,
         y1: 0,
@@ -86,24 +76,18 @@ export function build_persistent_query_data(config, styles, computed) {
       label: {
         name: name,
         x: left_x + pq_label_margin_left,
-        y: this_top_y - pq_label_margin_bottom
+        y: absolute_top_y - pq_label_margin_bottom
       },
-      source_partitions: {
-        partitions: sp_data.source_partitions,
-        name: name
-      },
-      stream_time: st_data,
-      target: svg_target,
       brackets: {
         tl: {
           x: left_x + b_len,
-          y: this_top_y,
+          y: absolute_top_y,
           h: -b_len,
           v: b_len
         },
         tr: {
           x: right_x - b_len,
-          y: this_top_y,
+          y: absolute_top_y,
           h: b_len,
           v: b_len
         },
@@ -120,52 +104,86 @@ export function build_persistent_query_data(config, styles, computed) {
           h: -b_len
         }
       },
-      midpoint_y: box_bottom_y - (pq_height / 2),
-      bottom_y: st_state.bottom_y
+      style: pq_style || {},
     },
-    state: {
-      bottom_y: st_state.bottom_y
+    vars: {
+      query_text: query_text,
+      query_parts: {
+        into: into,
+        where: where,
+        partition_by: partition_by
+      }
+    },
+    children: {
+      stream_time: stream_time_data,
+      source_partitions: source_partitions_data
+    },
+    graph: {
+      predecessors: predecessors,
+      successors: successors
+    },
+    refs: {
+      top_y: absolute_top_y,
+      bottom_y: stream_time_data.refs.bottom_y,
+      box_bottom_y: box_bottom_y,
+      midpoint_y: box_bottom_y - (pq_height / 2),
+      left_x: left_x,
+      right_x: right_x,
+      midpoint_x: midpoint_x
     }
-  };
+  }
 }
 
-function source_partitions_html({ partitions, name }) {
-  let html = ``;
-
-  partitions.forEach(data => {
-    html += `
-<text x="${data.x}" y="${data.y}" class="code collection-${data.collection} partition-${data.partition} pq-${name}">${data.collection}/${data.partition}: <tspan>-</tspan></text>`;
-  });
-
-  return html;
-}
-
-function stream_time_html({ id, x, y }) {
-  return `
-<text id="${id}" x="${x}" y="${y}" class="code">Stream time: <tspan>-</tspan></text>
-`;
-}
-
-export function render_persistent_query(data) {
-  const { line, brackets, label, source_partitions, stream_time, target } = data;
+export function render(data) {
+  const { id, name, vars, rendering, children } = data;
+  const { line, label, brackets } = rendering;
   const { tl, tr, bl, br } = brackets;
+  const { stream_time, source_partitions } = children;
 
-  const source_partitions_markup = source_partitions_html(source_partitions);
-  const stream_time_markup = stream_time_html(stream_time);
+  const g = create_svg_el("g");
+  g.id = id;
+  g.classList.add("persistent-query-container");
 
-  const html = `
-<g class="persistent-query-container">
-    <line x1="${line.x1}" y1="${line.y1}" x2="${line.x2}" y2="${line.y2}" class="pq-connector"></line>
-    
-    <path d="M ${tl.x},${tl.y} h ${tl.h} v ${tl.v}" class="pq"></path>
-    <path d="M ${tr.x},${tr.y} h ${tr.h} v ${tr.v}" class="pq"></path>
-    <path d="M ${bl.x},${bl.y} v ${bl.v} h ${bl.h}" class="pq"></path>
-    <path d="M ${br.x},${br.y} v ${br.v} h ${br.h}" class="pq"></path>
+  const d_line = create_svg_el("line");
+  d_line.setAttributeNS(null, "x1", line.x1);
+  d_line.setAttributeNS(null, "y1", line.y1);
+  d_line.setAttributeNS(null, "x2", line.x2);
+  d_line.setAttributeNS(null, "y2", line.y2);
+  d_line.classList.add("pq-connector");
 
-    <text x="${label.x}" y ="${label.y}" class="code">${label.name}</text>
-    ${source_partitions_markup}
-    ${stream_time_markup}
-</g>`;
+  const d_tl = create_svg_el("path");
+  d_tl.setAttributeNS(null, "d", `M ${tl.x},${tl.y} h ${tl.h} v ${tl.v}`);
+  d_tl.classList.add("pq");
 
-  $("." + target).append(html);
+  const d_tr = create_svg_el("path");
+  d_tr.setAttributeNS(null, "d", `M ${tr.x},${tr.y} h ${tr.h} v ${tr.v}`);
+  d_tr.classList.add("pq");
+
+  const d_bl = create_svg_el("path");
+  d_bl.setAttributeNS(null, "d", `M ${bl.x},${bl.y} v ${bl.v} h ${bl.h}`);
+  d_bl.classList.add("pq");
+
+  const d_br = create_svg_el("path");
+  d_br.setAttributeNS(null, "d", `M ${br.x},${br.y} v ${br.v} h ${br.h}`);
+  d_br.classList.add("pq");
+
+  const d_label = create_svg_el("text");
+  d_label.setAttributeNS(null, "x", label.x);
+  d_label.setAttributeNS(null, "y", label.y);
+  d_label.classList.add("code");
+  d_label.textContent = name;
+
+  const d_stream_time = st.render(stream_time);
+  const d_source_partitions = source_partitions.map(s => sp.render(s));
+  
+  g.appendChild(d_line);
+  g.appendChild(d_tl);
+  g.appendChild(d_tr);
+  g.appendChild(d_bl);
+  g.appendChild(d_br);
+  g.appendChild(d_label);
+  g.appendChild(d_stream_time);
+  d_source_partitions.forEach(sp => g.appendChild(sp));
+
+  return g;
 }

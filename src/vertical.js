@@ -1,67 +1,49 @@
-function coll_y_top(data) {
-  return data.label.label.y;
-}
+let translate_y_fns = {
+  "stream": stream_translate_y,
+  "persistent_query": persistent_query_translate_y
+};
 
-function coll_y_bottom(data) {
-  const bl = data.partitions.slice(-1)[0].brackets.bl;
-  return (bl.y + bl.v);
-}
+function stream_translate_y(data, height) {
+  data.refs.top_y += height;
+  data.refs.bottom_y += height;
 
-function persistent_query_y_top(data) {
-  return data.line.y1;
-}
+  const label = data.children.label;
 
-function persistent_query_y_bottom(data) {
-  return data.bottom_y;
-}
+  label.rendering.text.y += height;
 
-function rendered_y_top(data) {
-  switch(data.kind) {
-  case "collection":
-    return coll_y_top(data)
-  case "persistent_query":
-    return persistent_query_y_top(data);
-  }
-}
+  label.rendering.tip.y1 += height;
+  label.rendering.tip.y2 += height;
 
-function rendered_y_bottom(data) {
-  switch(data.kind) {
-  case "collection":
-    return coll_y_bottom(data)
-  case "persistent_query":
-    return persistent_query_y_bottom(data);
-  }
-}
+  label.rendering.bar.y1 += height;
+  label.rendering.bar.y2 += height;
 
-function collection_translate_y(data, height) {
-  data.label.label.y += height;
+  label.rendering.left_foot.y1 += height;
+  label.rendering.left_foot.y2 += height;
 
-  data.label.tip.y1 += height;
-  data.label.tip.y2 += height;
+  label.rendering.right_foot.y1 += height;
+  label.rendering.right_foot.y2 += height;
 
-  data.label.bar.y1 += height;
-  data.label.bar.y2 += height;
+  data.children.partitions = data.children.partitions.map(partition => {
+    partition.rendering.partition_label.y += height;
 
-  data.label.left_foot.y1 += height;
-  data.label.left_foot.y2 += height;
+    partition.rendering.brackets.tl.y += height;
+    partition.rendering.brackets.tr.y += height;
+    partition.rendering.brackets.bl.y += height;
+    partition.rendering.brackets.br.y += height;
 
-  data.label.right_foot.y1 += height;
-  data.label.right_foot.y2 += height;
+    partition.refs.midpoint_y += height;
 
-  data.partitions = data.partitions.map(partition => {
-    partition.id.y += height;
-
-    partition.brackets.tl.y += height;
-    partition.brackets.tr.y += height;
-    partition.brackets.bl.y += height;
-    partition.brackets.br.y += height;
-
-    partition.midpoint_y += height;
-
-    partition.rows = partition.rows.map(row => {
-      row.y += height;
-
+    partition.children.rows = partition.children.rows.map(row => {
+      row.rendering.y += height;
       return row;
+    });
+
+    partition.children.consumer_markers = partition.children.consumer_markers.map(marker => {
+      marker.rendering.arrow_y += height;
+      marker.rendering.text_y += height;
+      marker.refs.top_y += height;
+
+      return marker;
     });
 
     return partition;
@@ -71,34 +53,28 @@ function collection_translate_y(data, height) {
 }
 
 function persistent_query_translate_y(data, height) {
-  data.line.y2 += height;
+  data.rendering.line.y2 += height;
 
-  data.brackets.tl.y += height;
-  data.brackets.tr.y += height;
-  data.brackets.bl.y += height;
-  data.brackets.br.y += height;
+  data.rendering.brackets.tl.y += height;
+  data.rendering.brackets.tr.y += height;
+  data.rendering.brackets.bl.y += height;
+  data.rendering.brackets.br.y += height;
 
-  data.midpoint_y += height;
-  data.bottom_y += height;
+  data.rendering.label.y += height;
 
-  data.label.y += height;
+  data.refs.midpoint_y += height;
+  data.refs.bottom_y += height;
+  data.refs.box_bottom_y += height;
 
-  data.source_partitions.partitions.forEach(partition => {
-    partition.y += height;
+  data.children.source_partitions.forEach(partition => {
+    partition.rendering.y += height;
+    partition.refs.bottom_y += height;
   });
 
-  data.stream_time.y += height;
+  data.children.stream_time.rendering.y += height;
+  data.children.stream_time.refs.bottom_y += height;
   
   return data;
-}
-
-function translate_y(data, height) {
-  switch(data.kind) {
-  case "collection":
-    return collection_translate_y(data, height);
-  case "persistent_query":
-    return persistent_query_translate_y(data, height);
-  }
 }
 
 export function vertically_center_layout(layout_data) {
@@ -106,12 +82,12 @@ export function vertically_center_layout(layout_data) {
     if (components.length == 1) {
       let data = components[0];
 
-      return rendered_y_bottom(data) - rendered_y_top(data);
+      return data.refs.bottom_y - data.refs.top_y;
     } else {
       let data_1 = components[0];
       let data_2 = components.slice(-1)[0];
 
-      return rendered_y_bottom(data_2) - rendered_y_top(data_1);
+      return data_2.refs.bottom_y - data_1.refs.top_y;
     }
   });
 
@@ -123,7 +99,8 @@ export function vertically_center_layout(layout_data) {
     const each_diff = diff / n;
 
     return layout_data[i].map(data => {
-      return translate_y(data, each_diff);
+      const fn = translate_y_fns[data.kind];
+      return fn(data, each_diff);
     });
   });
 }

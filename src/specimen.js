@@ -1,50 +1,47 @@
-import * as graphlib from 'graphlib';
-import $ from 'jquery';
-import anime from 'animejs/lib/anime.es.js';
-import {
-  uuidv4,
-  inverse_map,
-  index_by_name,
-  index_by,
-  cycle_array,
-  select_keys,
-  relative_add,
-} from './util';
-import { build_collection_data, render_collection } from './components/collection';
-import { build_persistent_query_data } from './components/persistent-query';
-import { vertically_center_layout } from "./vertical";
-import { build_controls_data, render_controls } from './components/controls';
-import { build_svg_data, render_svg } from './components/svg';
-import { render_persistent_query } from './components/persistent-query';
-import { build_dynamic_container_data } from './components/row';
-import { build_consumer_markers_data, render_consumer_marker } from './components/consumer-marker';
-import { render_query_text } from './query-text';
-import { run_until_drained } from './runtime';
-import { build_dynamic_elements_data, animation_sequence, anime_data } from './animate';
+import * as stream from "./components/stream";
+import * as pq from "./components/persistent-query";
+import * as controls from "./components/controls";
+import * as svg from "./components/svg";
+import * as qt from "./components/query-text";
+import * as f from "./components/free";
+import * as ci from "./component-index";
+import * as v from "./vertical";
+import * as s from "./styles";
+import * as rt from "./runtime";
+import * as a from "./animate";
+import * as graphlib from "graphlib";
 
-import { styles } from './styles';
+import anime from "animejs/lib/anime.es.js";
 
-function build_data(node, styles, computed) {
-  switch(node.kind) {
-  case "collection":
-    return build_collection_data(node, styles, computed);
+import { uuidv4, inverse_map } from "./util";
 
-  case "persistent_query":
-    return build_persistent_query_data(node, styles, computed);
-  }
+let data_fns = {
+  "stream": stream.build_data,
+  "persistent_query": pq.build_data
+};
+
+let rendering_fns = {
+  "stream": stream.render,
+  "persistent_query": pq.render,
 }
 
 function add_metadata(component, styles) {
   const { row_default_fill } = styles;
-  
+
   switch(component.kind) {
-  case "collection":
-    Object.entries(component.partitions).forEach(([id, partition]) => {
-      partition.forEach((row, i) => {
+  case "stream":
+    component.partitions.forEach((partition, partition_id) => {
+      partition.forEach((row, offset) => {
+        row.record = {
+          stream: component.name,
+          partition: partition_id,
+          offset: offset,
+          t: row.t,
+          key: row.key,
+          value: row.value
+        };
+
         row.source_id = uuidv4();
-        row.collection = component.name;
-        row.partition = id;
-        row.offset = i;
         row.style = { ...{ fill: row_default_fill }, ...row.style };
       });
     });
@@ -55,9 +52,10 @@ function add_metadata(component, styles) {
   }
 }
 
-export function Specimen(styles) {
+export function Specimen(container, styles) {
+  this._container = container;
+  this._styles = { ... s.styles, ...styles };
   this._graph = new graphlib.Graph();
-  this._styles = styles;
 }
 
 Specimen.prototype.add_root = function(node) {
@@ -77,37 +75,6 @@ Specimen.prototype.add_child = function(parents, node) {
 
 Specimen.prototype.get_node = function(name) {
   return this._graph.node(name);
-}
-
-Specimen.prototype.node_kinds = function() {
-  const nodes = this._graph.nodes();
-  const vals = nodes.map(node => {
-    return this._graph.node(node);
-  });
-  
-  return vals.reduce((all, node) => {
-    let group = all[node.kind] || {};
-    group[node.name] = node;
-    all[node.kind] = group;
-
-    return all;
-  }, {});
-}
-
-Specimen.prototype.source_collections = function() {
-  return this._graph.sources();
-}
-
-Specimen.prototype.sink_collections = function() {
-  return this._graph.sinks();
-}
-
-Specimen.prototype.parents = function(name) {
-  return this._graph.predecessors(name);
-}
-
-Specimen.prototype.children = function(name) {
-  return this._graph.successors(name);
 }
 
 Specimen.prototype.layout_buckets = function() {
@@ -150,22 +117,31 @@ Specimen.prototype.horizontal_layout = function() {
 
     names.sort().forEach(name => {
       const node = this._graph.node(name);
-      const computed = { top_y: top_y, midpoint_x: midpoint_x };
+      const predecessors = this._graph.predecessors(name);
+      const successors = this._graph.successors(name);
+
+      const computed = {
+        predecessors: predecessors,
+        successors: successors,
+        top_y: top_y,
+        midpoint_x: midpoint_x
+      };
 
       if (node.kind == "persistent_query") {
-        const source_partitions = this.parents(node.name).reduce((acc, parent) => {
+        const source_partitions = this._graph.predecessors(node.name).reduce((acc, parent) => {
           const node = this.get_node(parent);
           acc[parent] = Object.keys(node.partitions);          
           return acc;
         }, {});
 
-        computed.source_partitions = source_partitions;
+        node.source_partitions = source_partitions;
       } 
 
-      const { data, state } = build_data(node, this._styles, computed);
+      const data_fn = data_fns[node.kind];
+      const data = data_fn(node, this._styles, computed);
 
       data.name = name;
-      top_y = state.bottom_y;
+      top_y = data.refs.bottom_y;
       result.push(data)
     });
 
@@ -173,122 +149,129 @@ Specimen.prototype.horizontal_layout = function() {
     return all;
   }, []);
 
-  return vertically_center_layout(layout).flatMap(xs => xs);
+  return v.vertically_center_layout(layout).flatMap(xs => xs);
 }
 
-function render(data) {
-  switch(data.kind) {
-  case "collection":
-    render_collection(data);
-    break;
-  case "persistent_query":
-    render_persistent_query(data);
-    break;
+Specimen.prototype.draw_layout = function(layout) {
+  const svg_data = svg.build_data({}, this._styles, {});
+  const svg_el = svg.render(svg_data);
+
+  layout.forEach(data => {
+    const fn = rendering_fns[data.kind];
+    const element = fn(data);
+    svg_el.appendChild(element);
+  });
+
+  const target = document.querySelector(this._container);
+  target.appendChild(svg_el);
+
+  const query_text_data = qt.build_data({}, this._styles, {});
+  qt.render(query_text_data, this._styles, {
+    target: svg_el,
+    layout: layout
+  });
+
+  const by_id = ci.index_by_id(layout);
+  ci.pack(svg_data, by_id);
+  ci.pack(query_text_data, by_id);
+
+  return by_id;
+}
+
+Specimen.prototype.animate = function(by_id) {
+  let progress_el = undefined;
+
+  let anime_commands = [];
+  let anime_callbacks = {
+    cbs: [],
+    index: 0
+  };
+
+  const timeline = anime.timeline({
+    autoplay: false,
+    update: function(anim) {
+      const anime_t = anim.currentTime;
+
+      if (!anim.reversePlayback) {
+        if (anime_callbacks.index < 0) {
+          anime_callbacks.index = 0;
+        }
+
+        while ((anime_callbacks.index < anime_callbacks.cbs.length) &&
+               (anime_callbacks.cbs[anime_callbacks.index].t <= anime_t)) {
+          anime_callbacks.cbs[anime_callbacks.index].apply();
+          anime_callbacks.index++;
+        }
+      } else {
+        if (anime_callbacks.index >= anime_callbacks.cbs.length) {
+          anime_callbacks.index = anime_callbacks.cbs.length - 1;
+        }
+
+        while ((anime_callbacks.index >= 0) && anime_callbacks.cbs[anime_callbacks.index].t >= anime_t) {
+          anime_callbacks.cbs[anime_callbacks.index].undo();
+          anime_callbacks.index--;
+        }
+      }
+
+      progress_el.value = timeline.progress;
+    }
+  });
+
+  const by_name = ci.index_by_name(by_id);
+  const objs = Object.values(by_id)
+
+  const unpack_by_id = (id) => ci.unpack(by_id, id);
+  const unpack_by_name = (name) => unpack_by_id(by_name[name]);
+  const pack = (obj) => ci.pack(obj, by_id);
+
+  const data_fns = {
+    by_id: unpack_by_id,
+    by_name: unpack_by_name,
+    pack: pack
+  };
+
+  const target = document.querySelector(this._container);
+  const svg_el = document.getElementById(unpack_by_name("svg-container").id);
+
+  const query_text_el = document.getElementById(unpack_by_name("query-text").id);
+
+  const controls_data = controls.build_data({}, this._styles, {
+    timeline: timeline,
+    callbacks: anime_callbacks,
+  });
+  const controls_el = controls.render(controls_data);
+
+  const free_data = f.build_data({}, this._styles, {});
+  const free_el = f.render(free_data);
+
+  svg_el.appendChild(free_el);
+  query_text_el.insertAdjacentElement("beforebegin", controls_el);
+  progress_el = document.getElementById(controls_data.rendering.progress.id);
+
+  let rt_context = rt.init_runtime(objs, data_fns);
+  const animation_context = a.init_animation_context();
+
+  while (rt_context.drained != true) {
+    const next_context = rt.tick(rt_context)
+    const action = next_context.action;
+    const lineage = next_context.lineage;
+
+    if (action) {
+      a.update_layout(action, data_fns, this._styles, free_el);
+      const animation_seq = a.animation_seq(action, data_fns, this._styles);
+      const anime_data = a.anime_data(animation_context, animation_seq, data_fns, lineage, this._styles);
+
+      anime_commands = anime_commands.concat(anime_data.commands);
+      anime_callbacks.cbs = anime_callbacks.cbs.concat(anime_data.callbacks);
+    }
+
+    rt_context = next_context;
   }
-}
 
-function render_dynamic_container(data) {
-  const { container, dynamic_target } = data;
-
-  const html = `<g class="${dynamic_target}"></g>`;
-  $("." + container).append(html);
-}
-
-function render_dynamic_row(data) {
-  const { container, width, height, x, y, fill } = data;
-  const { id, collection, partition, offset } = data;
-  const row_data = select_keys(data, ["collection", "partition", "offset", "t", "key", "value"]);
-  const row_str = JSON.stringify(row_data, null, 4);
-
-  const html = `<rect width="${width}" height="${height}" x="${x}" y="${y}" class="row id-${id} collection-${collection} partition-${partition} offset-${offset}" fill="${fill}"><title>${row_str}</title></rect>`;
-
-  $("." + container).append(html);  
-}
-
-Specimen.prototype.render = function(layout, container) {
-  const controls_data = build_controls_data(this._styles);
-  render_controls(container, controls_data);
-
-  const { svg_width } = this._styles;
-  const svg_data = build_svg_data(this._styles);
-  render_svg(container, svg_data);
-
-  layout.forEach(data => render(data));
-  render_query_text(layout, this._styles.svg_target, this._styles.svg_width);
-
-  // Repaint.
-  $(container).html($(container).html());
-}
-
-Specimen.prototype.consumer_graph = function() {
-  const kinds = this.node_kinds();
-  const pqs = Object.keys(kinds.persistent_query);
-
-  return Object.entries(kinds.collection).reduce((all, [name, { partitions }]) => {
-    const children = this.children(name);
-    const child_pqs = children.filter(child => pqs.includes(child));
-
-    all[name] = Object.keys(partitions).reduce((parts, part) => {
-      parts[part] = child_pqs;
-      return parts;
-    }, {});
-
-    return all;
-  }, {});
-}
-
-Specimen.prototype.static_row_index = function(layout_index) {
-  const sources = this.source_collections();
-  let result = {};
-
-  sources.forEach(source => {
-    layout_index[source].partitions.forEach(partition => {
-      partition.rows.forEach(row => {
-        result[row.source_id] = row;
-      });
-    });
-  });
-
-  return result;
-}
-
-Specimen.prototype.animate = function(layout, container) {
-  const layout_index = index_by_name(layout);
-  const consumer_graph = this.consumer_graph();
-  const static_row_index = this.static_row_index(layout_index);
-
-  const { actions, lineage } = run_until_drained(this);
-
-  const dynamic_container_data = build_dynamic_container_data(this._styles);
-  const dynamic_data = build_dynamic_elements_data(layout_index, actions, this._styles);
-  const consumer_markers = build_consumer_markers_data(layout_index, consumer_graph, this._styles);
-
-  render_dynamic_container(dynamic_container_data);
-  Object.values(dynamic_data).forEach(data => render_dynamic_row(data));
-
-  const all_dynamic_data = { ...dynamic_data,
-                             ...static_row_index,
-                             ...{
-                               consumer_markers: consumer_markers
-                             }};
-
-  Object.entries(consumer_markers).forEach(([coll, partitions]) => {
-    Object.entries(partitions).forEach(([partition, pqs]) => {
-      Object.entries(pqs).forEach(([pq, data]) => {
-        render_consumer_marker(data);
-      });
-    });
-  });
-
-  $(container).html($(container).html());
-
-  const animations = animation_sequence(layout_index, all_dynamic_data, actions, this._styles);
-  const { commands, callbacks } = anime_data(animations, lineage);
-
-  const controlsProgressEl = $(container + " > .controls > .progress");
+  anime_commands.forEach(c => timeline.add(c.params, c.t));
 
   // Use a sorted data structure to skip this.
-  callbacks.sort(function(a, b) {
+  anime_callbacks.cbs.sort(function(a, b) {
     if (a.t < b.t) {
       return -1;
     } else if (a.t == b.t) {
@@ -297,69 +280,10 @@ Specimen.prototype.animate = function(layout, container) {
       return 1;
     }
   });
+}
 
-  let callback_index = 0;
-
-  const timeline = anime.timeline({
-    autoplay: true,
-    update: function(anim) {
-      const anime_t = anim.currentTime;
-
-      if (!anim.reversePlayback) {
-        if (callback_index < 0) {
-          callback_index = 0;
-        }
-
-        while ((callback_index < callbacks.length) && callbacks[callback_index].t <= anime_t) {
-          callbacks[callback_index].apply();
-          callback_index++;
-        }
-      } else {
-        if (callback_index >= callbacks.length) {
-          callback_index = callbacks.length - 1;
-        }
-
-        while ((callback_index >= 0) && callbacks[callback_index].t >= anime_t) {
-          callbacks[callback_index].undo();
-          callback_index--;
-        }
-      }
-
-      controlsProgressEl.val(timeline.progress);
-    }
-  });
-
-  const seek_ms = this._styles.seek_ms;
-
-  $(container + " > .controls > .play").click(timeline.play);
-  $(container + " > .controls > .pause").click(timeline.pause);
-  $(container + " > .controls > .restart").click(function() {
-    if (callback_index >= callbacks.length) {
-      callback_index = callbacks.length - 1;
-    }
-
-    while ((callback_index >= 0) && callbacks[callback_index].t >= 0) {
-      callbacks[callback_index].undo();
-      callback_index--;
-    }
-
-    timeline.restart();
-  });
-
-  $(container + " > .controls > .backward").click(function() {
-    timeline.pause();
-    timeline.seek(Math.max(0, timeline.currentTime - seek_ms));
-  });
-
-  $(container + " > .controls > .forward").click(function() {
-    timeline.pause();
-    timeline.seek(Math.min(timeline.duration, timeline.currentTime + seek_ms));
-  });
-
-  controlsProgressEl.on("input", function() {
-    timeline.pause();
-    timeline.seek(timeline.duration * (controlsProgressEl.val() / 100));
-  });
-
-  commands.forEach(c => timeline.add(c.params, c.t));
+Specimen.prototype.render = function() {
+  const layout = this.horizontal_layout();
+  const by_id = this.draw_layout(layout);
+  this.animate(by_id);
 }

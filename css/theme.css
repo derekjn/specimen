@@ -1,4 +1,4 @@
-.system {
+.animation {
     display: block;
     margin: auto;
 }
@@ -14,13 +14,9 @@
     stroke-dasharray: 4;
 }
 
-.coll-connector {
+.stream-connector {
     stroke: #b5b5b5;
 }
-
-/* .row { */
-/*     fill: #6b84ff; */
-/* } */
 
 .row-transformed {
     fill: #a96bff;
@@ -42,4 +38,8 @@
 
 .pq-code-container {
     margin-top: 40px;
+}
+
+.controls button {
+    margin-right: 5px;
 }

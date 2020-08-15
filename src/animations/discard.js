@@ -1,34 +1,5 @@
-import * as r from "./../components/row";
 import * as c from "./common";
 import { relative_add, relative_sub, ms_for_translate } from "./../util";
-
-function adjust_rendering(action, data_fns, styles) {
-  const { by_id, by_name, pack } = data_fns;
-  const { d_row_margin_left } = styles;
-  const { stream, partition } = action.before.row.vars.record;
-
-  const stream_data = by_name(stream);
-  const partition_data = stream_data.children.partitions[partition];
-
-  const right_x = partition_data.refs.right_x + d_row_margin_left;
-  const row_data = by_id(action.after.row.id);
-
-  row_data.rendering.x = right_x;
-  pack(row_data);
-}
-
-function draw_new_object(action, data_fns) {
-  const { by_id } = data_fns;
-  const row_data = by_id(action.after.row.id);
-
-  return r.render(row_data);
-}
-
-export function update_layout(action, data_fns, styles, free_el) {
-  adjust_rendering(action, data_fns, styles);
-  const obj = draw_new_object(action, data_fns);
-  free_el.appendChild(obj);
-}
 
 export function animation_seq(action, data_fns, styles) {
   const { before, after, processed_by } = action;
@@ -60,30 +31,11 @@ export function animation_seq(action, data_fns, styles) {
   const move_to_pq_center_y = pq_enter_y;
 
   const approach_pq_x = pq_enter_x;
-  const traverse_pq_x = pq_exit_x;
-  const depart_pq_x = traverse_pq_x + d_row_enter_offset;
+  const cross_half_pq_x = pq_data.refs.midpoint_x;
+  const fall_away_y = pq_data.refs.box_bottom_y - row_height;
 
-  const move_to_partition_center_x = after_part_left_x - d_row_enter_offset;
-  const move_to_partition_center_y = after_part_data.refs.midpoint_y - (row_height / 2);
-
-  const after_part_margin = after_record.offset * row_margin_left;
-  const after_part_spacing = after_record.offset * row_width;
-  const enter_partition_x = after_part_right_x - after_part_margin - row_offset_right - after_part_spacing - row_width;
-
-  after.row.rendering.x = enter_partition_x;
-  after.row.rendering.y = move_to_partition_center_y;
-
-
-  const before_fill = action.before.row.rendering.fill;
-  let after_fill = undefined;
-
-  if(pq_data.rendering.style.fill) {
-    after_fill = pq_data.rendering.style.fill(before_record, after_record);
-    after.row.rendering.fill = after_fill;
-  }
-
-  const fill_change = [before_fill, after_fill || before_fill];
-
+  after.row.rendering.x = cross_half_pq_x;
+  after.row.rendering.y = fall_away_y;
   pack(after.row);
 
   const consumer_marker_id = before_part_data.vars.indexed_consumer_markers[processed_by];
@@ -104,7 +56,7 @@ export function animation_seq(action, data_fns, styles) {
   pack(consumer_marker_data);
 
   return {
-    kind: "keep",
+    kind: "discard",
     action: action,
     animations: {
       appear: {
@@ -116,19 +68,12 @@ export function animation_seq(action, data_fns, styles) {
       approach_pq: {
         translateX: (approach_pq_x - move_to_pq_center_x)
       },
-      traverse_pq: {
-        translateX: (traverse_pq_x - approach_pq_x),
-        fill: fill_change
+      cross_half_pq: {
+        translateX: (cross_half_pq_x - approach_pq_x),
       },
-      depart_pq: {
-        translateX: (depart_pq_x - traverse_pq_x)
-      },
-      move_to_partition_center: {
-        translateX: (move_to_partition_center_x - depart_pq_x),
-        translateY: (move_to_partition_center_y - move_to_pq_center_y)
-      },
-      enter_partition: {
-        translateX: (enter_partition_x - move_to_partition_center_x)
+      fall_away: {
+        translateY: (fall_away_y - move_to_pq_center_y),
+        opacity: [1, 0]
       },
       move_consumer_marker: {
         translateX: (consumer_marker_before_x - consumer_marker_after_x),
@@ -151,10 +96,8 @@ export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles)
   const appear_ms = d_row_appear_ms;
   const move_to_pq_center_ms = ms_for_translate(animations.move_to_pq_center, ms_px);
   const approach_pq_ms = ms_for_translate(animations.approach_pq, ms_px);
-  const traverse_pq_ms = ms_for_translate(animations.traverse_pq, ms_px);
-  const depart_pq_ms = ms_for_translate(animations.depart_pq, ms_px);
-  const move_to_partition_center_ms = ms_for_translate(animations.move_to_partition_center, ms_px);
-  const enter_partition_ms = ms_for_translate(animations.enter_partition, ms_px);
+  const cross_half_pq_ms = ms_for_translate(animations.cross_half_pq, ms_px);
+  const fall_away_ms = ms_for_translate(animations.fall_away, ms_px);
 
   const consumer_marker_ms = ms_for_translate(animations.move_consumer_marker, ms_px);
 
@@ -166,7 +109,8 @@ export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles)
       keyframes: [
         {
           duration: appear_ms,
-          opacity: [0, 1]
+          opacity: [0, 1],
+          fill: animations.appear.fill
         },
         {
           duration: move_to_pq_center_ms,
@@ -178,38 +122,19 @@ export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles)
           translateX: relative_add(animations.approach_pq.translateX)
         },
         {
-          duration: traverse_pq_ms,
-          translateX: relative_add(animations.traverse_pq.translateX),
-          fill: animations.traverse_pq.fill,
+          duration: cross_half_pq_ms,
+          translateX: relative_add(animations.cross_half_pq.translateX),
         },
         {
-          duration: depart_pq_ms,
-          translateX: relative_add(animations.depart_pq.translateX)
-        },
-        {
-          duration: move_to_partition_center_ms,
-          translateX: relative_add(animations.move_to_partition_center.translateX),
-          translateY: relative_add(animations.move_to_partition_center.translateY)
-        },
-        {
-          duration: enter_partition_ms,
-          translateX: relative_add(animations.enter_partition.translateX)
+          duration: fall_away_ms,
+          translateY: relative_add(animations.fall_away.translateY),
+          opacity: animations.fall_away.opacity
         }
       ]
     }
   };
 
   t[action.processed_by] = (t_offset + appear_ms + move_to_pq_center_ms + approach_pq_ms);
-  history[action.before.row.id] = (
-    t_offset +
-      appear_ms +
-      move_to_pq_center_ms +
-      approach_pq_ms +
-      traverse_pq_ms +
-      depart_pq_ms +
-      move_to_partition_center_ms +
-      enter_partition_ms
-  );
 
   const before_record = action.before.row.vars.record;
   const before_stream_data = by_name(before_record.stream);

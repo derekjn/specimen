@@ -1,54 +1,44 @@
-import { build_dynamic_container_data, build_dynamic_row_data } from './components/row';
-import { keep_animation_sequence, keep_animations } from './animations/keep';
-import { select_keys, relative_add, relative_sub } from './util';
+import * as k from "./animations/keep";
+import * as d from "./animations/discard";
 
-export function build_dynamic_elements_data(layout_index, actions, styles) {
-  return actions.reduce((all, action) => {
-    const { from, old_row } = action;
+let update_layout_fns = {
+  "keep": k.update_layout,
+  "discard": k.update_layout
+};
 
-    const right_x = layout_index[old_row.collection].partitions[old_row.partition].right_x;
-    const top_y = layout_index[old_row.collection].partitions[old_row.partition].brackets.tr.y;
+let animation_seq_fns = {
+  "keep": k.animation_seq,
+  "discard": d.animation_seq,
+};
 
-    all[old_row.id] = build_dynamic_row_data(old_row, styles, {
-      right_x: right_x,
-      top_y: top_y
-    });
+let anime_data_fns = {
+  "keep": k.anime_data,
+  "discard": d.anime_data
+};
 
-    return all;
-  }, {});
-}
-
-export function animation_sequence(layout_index, dynamic_elements, actions, styles) {
-  let seq = [];
-
-  actions.forEach(action => {
-    seq.push(keep_animation_sequence(action, layout_index, dynamic_elements, styles));
-  });
-  
-  return seq;
-}
-
-export function anime_data(seq, lineage) {
-  const ms_px = 3;
-
-  let result = {
-    commands: [],
-    callbacks: []
+export function init_animation_context() {
+  return {
+    t: {},
+    history: {}
   };
-  let history = {};
-  let t = {};
+}
 
-  seq.forEach((change) => {
-    const { commands: cmds, callbacks: cbs } = keep_animations(change, t, history, lineage);
+export function update_layout(action, data_fns, styles, free_el) {
+  const { by_id } = data_fns;
+  
+  const layout_fn = update_layout_fns[action.kind];
+  layout_fn(action, data_fns, styles, free_el);
 
-    cmds.forEach(cmd => {
-      result.commands.push(cmd);
-    });
+  // The layout has mutated, so this row needs to be refreshed.
+  action.after.row = by_id(action.after.row.id);
+}
 
-    cbs.forEach(cb => {
-      result.callbacks.push(cb)
-    });
-  });
+export function animation_seq(action, data_fns, styles) {
+  const animation_seq_fn = animation_seq_fns[action.kind];
+  return animation_seq_fn(action, data_fns, styles);
+}
 
-  return result;
+export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles) {
+  const anime_data_fn = anime_data_fns[action_animation_seq.kind];
+  return anime_data_fn(ctx, action_animation_seq, data_fns, lineage, styles);
 }

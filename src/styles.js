@@ -1,5 +1,4 @@
 export const styles = {
-  svg_target: "system",
   svg_width: 1200,
   svg_height: 500,
 
@@ -36,12 +35,13 @@ export const styles = {
 
   d_row_margin_left: 10,
   d_row_enter_offset: 30,
+  d_row_appear_ms: 250,
 
-  consumer_m_init_margin_left: 3,
   consumer_m_text_margin_bottom: 15,
   consumer_m_offset_bottom: 5,
-  consumer_m_margin_bottom: 10,
+  consumer_m_margin_bottom: 15,
   consumer_m_margin_right: 3,
 
-  seek_ms: 25
+  seek_ms: 25,
+  ms_px: 2
 };
