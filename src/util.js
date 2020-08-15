@@ -1,5 +1,5 @@
 export function uuidv4() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+  return 'id-xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
@@ -52,4 +52,8 @@ export function relative_sub(x) {
 
 export function ms_for_translate(m, ms) {
   return (Math.abs(m.translateX || 0) + Math.abs(m.translateY || 0)) * ms;
+}
+
+export function create_svg_el(tag) {
+  return document.createElementNS("http://www.w3.org/2000/svg", tag);
 }

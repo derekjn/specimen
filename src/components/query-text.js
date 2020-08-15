@@ -1,4 +1,14 @@
+import { uuidv4 } from './../util';
+
 const code_padding = 20;
+
+export function build_data(config, styles, computed) {
+  return {
+    kind: "query-text",
+    id: uuidv4(),
+    name: "query-text"
+  };
+}
 
 function make_code_container(code) {
   const new_code = document.createElement("code");
@@ -21,8 +31,9 @@ function make_code_container(code) {
   };
 }
 
-function make_parent_container(children) {
+function make_parent_container(id, children) {
   const new_div = document.createElement("div");
+  new_div.id = id;
   new_div.style.position = "relative";
   new_div.classList.add("pq-code-container");
 
@@ -42,7 +53,7 @@ function set_parent_height(parent, children) {
 }
 
 function set_pre_transform(pq, { pre }, svg_width) {
-  const x = (pq.line.x1) - (svg_width / 2);
+  const x = (pq.rendering.line.x1) - (svg_width / 2);
 
   pre.style.webkitTransform = `translateX(${x}px)`;
   pre.style.MozTransform = `translateX(${x}px)`;
@@ -51,16 +62,21 @@ function set_pre_transform(pq, { pre }, svg_width) {
   pre.style.transform = `translateX(${x}px)`;
 }
 
-export function render_query_text(layout, svg_target, svg_width) {
-  const pqs = layout.filter(component => component.kind == "persistent_query");
-  const children = pqs.map(pq => make_code_container(pq.query_text));
-  const parent = make_parent_container(children);
+export function render(data, styles, computed) {
+  const { id } = data;
+  const { svg_width } = styles;
+  const { layout, target } = computed;
 
-  const target = document.querySelector(`.${svg_target}`);
-  target.insertAdjacentElement('beforebegin', parent);
+  const pqs = layout.filter(component => component.kind == "persistent_query");
+  const children = pqs.map(pq => make_code_container(pq.vars.query_text));
+  const parent = make_parent_container(id, children);
+
+  target.insertAdjacentElement("beforebegin", parent);
 
   children.forEach(child => set_pre_width(child));
   set_parent_height(parent, children);
 
-  pqs.forEach((pq, i) => set_pre_transform(pq, children[i], svg_width));  
+  pqs.forEach((pq, i) => set_pre_transform(pq, children[i], svg_width));
+
+  return parent;
 }

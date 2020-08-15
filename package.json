@@ -8,8 +8,8 @@
   "dependencies": {
     "animejs": "^3.2.0",
     "graphlib": "^2.1.8",
-    "jquery": "^3.5.1",
-    "highlight.js": "^10.1.2"
+    "highlight.js": "^10.1.2",
+    "lodash": "^4.17.19"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^8.4.0",

@@ -1,85 +1,113 @@
-import { relative_add, relative_sub, ms_for_translate } from './../util';
-import { update_pq_offsets, update_row_popover, update_stream_time_text } from './common';
+import * as r from "./../components/row";
+import * as c from "./common";
+import { relative_add, relative_sub, ms_for_translate } from "./../util";
 
-export function keep_animation_sequence(action, layout_index, dynamic_elements, styles) {
-  const { old_row, new_row, processed_by, new_offsets, old_offsets } = action;
-  const { row_width, row_height, row_margin_left, row_offset_right } = styles;
-  const { consumer_m_margin_right, d_row_enter_offset } = styles;
+function adjust_rendering(action, data_fns, styles) {
+  const { by_id, by_name, pack } = data_fns;
+  const { d_row_margin_left } = styles;
+  const { stream, partition } = action.before.row.vars.record;
 
-  const old_row_position = dynamic_elements[old_row.id];
+  const stream_data = by_name(stream);
+  const partition_data = stream_data.children.partitions[partition];
 
-  const pq_data = layout_index[action.processed_by];
-  const pq_enter_x = pq_data.brackets.bl.x;
-  const pq_enter_y = pq_data.midpoint_y;
-  const pq_exit_x = pq_data.brackets.br.x;
-  const pq_exit_y = pq_enter_y;
+  const right_x = partition_data.refs.right_x + d_row_margin_left;
+  const row_data = by_id(action.after.row.id);
 
-  const new_part_x = layout_index[new_row.collection].partitions[new_row.partition].brackets.bl.x;
-  const new_part_y = layout_index[new_row.collection].partitions[new_row.partition].midpoint_y - (row_height / 2);
+  row_data.rendering.x = right_x;
+  pack(row_data);
+}
 
-  const new_part_start_x = layout_index[new_row.collection].partitions[new_row.partition].brackets.tr.x;
-  const new_part_margin = ((new_row.offset - 1) * row_margin_left);
-  const new_part_spacing = (new_row.offset * row_width);
+function draw_new_object(action, data_fns) {
+  const { by_id } = data_fns;
+  const row_data = by_id(action.after.row.id);
 
-  const new_row_x = new_part_start_x - new_part_margin - row_offset_right - new_part_spacing - row_width;
+  return r.render(row_data);
+}
 
-  // Row position rendering changes.
-  const appear_x = old_row_position.x;
-  const appear_y = old_row_position.y;
+export function update_layout(action, data_fns, styles, free_el) {
+  adjust_rendering(action, data_fns, styles);
+  const obj = draw_new_object(action, data_fns);
+  free_el.appendChild(obj);
+}
 
-  const move_to_pq_center_x = (pq_enter_x - d_row_enter_offset);
+export function animation_seq(action, data_fns, styles) {
+  const { before, after, processed_by } = action;
+  const { by_id, by_name, pack } = data_fns;
+  const { row_width, row_height, row_offset_right, row_margin_left } = styles;
+  const { d_row_enter_offset } = styles;
+  const { consumer_m_margin_right } = styles;
+
+  const before_record = before.row.vars.record;
+  const before_stream_data = by_name(before_record.stream);
+  const before_part_data = before_stream_data.children.partitions[before_record.partition];
+
+  const after_record = after.row.vars.record;
+  const after_stream_data = by_name(after_record.stream);
+  const after_part_data = after_stream_data.children.partitions[after_record.partition];
+
+  const pq_data = by_name(processed_by);
+  const pq_enter_x = pq_data.refs.left_x;
+  const pq_enter_y = pq_data.refs.midpoint_y;
+  const pq_exit_x = pq_data.refs.right_x;
+
+  const after_part_right_x = after_part_data.refs.right_x;
+  const after_part_left_x = after_part_data.refs.left_x;
+
+  const appear_x = after.row.rendering.x;
+  const appear_y = after.row.rendering.y;
+
+  const move_to_pq_center_x = pq_enter_x - d_row_enter_offset;
   const move_to_pq_center_y = pq_enter_y;
 
   const approach_pq_x = pq_enter_x;
   const traverse_pq_x = pq_exit_x;
-  const depart_pq_x = (traverse_pq_x + d_row_enter_offset);
+  const depart_pq_x = traverse_pq_x + d_row_enter_offset;
 
-  const move_to_partition_center_x = (new_part_x - d_row_enter_offset);
-  const move_to_partition_center_y = new_part_y;
+  const move_to_partition_center_x = after_part_left_x - d_row_enter_offset;
+  const move_to_partition_center_y = after_part_data.refs.midpoint_y - (row_height / 2);
 
-  const enter_partition_x = new_row_x;
+  const after_part_margin = after_record.offset * row_margin_left;
+  const after_part_spacing = after_record.offset * row_width;
+  const enter_partition_x = after_part_right_x - after_part_margin - row_offset_right - after_part_spacing - row_width;
 
-  // Row position data changes.
-  dynamic_elements[old_row.id].x = new_row_x;
-  dynamic_elements[old_row.id].y = new_part_y;
+  after.row.rendering.x = enter_partition_x;
+  after.row.rendering.y = move_to_partition_center_y;
 
-  // Consumer marker changes.
-  const consumer_marker_old_x = dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].x;
-  const consumer_marker_new_x = (dynamic_elements[old_row.derived_id].x + (row_width / 2)) - consumer_m_margin_right;
 
-  dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].x = consumer_marker_new_x;
+  const before_fill = action.before.row.rendering.fill;
+  let after_fill = undefined;
 
+  if(pq_data.rendering.style.fill) {
+    after_fill = pq_data.rendering.style.fill(before_record, after_record);
+    after.row.rendering.fill = after_fill;
+  }
+
+  const fill_change = [before_fill, after_fill || before_fill];
+
+  pack(after.row);
+
+  const consumer_marker_id = before_part_data.vars.indexed_consumer_markers[processed_by];
+  const consumer_marker_data = by_id(consumer_marker_id);
+  const derived_row_data = by_id(after.row.vars.derived_id);
+
+  const consumer_marker_before_x = consumer_marker_data.rendering.left_x;
+  const consumer_marker_after_x = derived_row_data.rendering.x + (row_width / 2) - consumer_m_margin_right;
+
+  // If the offset is 0, it's a reasonable proxy that this is the first
+  // record in the partition, so it's time to unveil the consumer marker.
   let consumer_marker_opacity = undefined;
-  if(old_row.offset == 0) {
+  if (before_record.offset == 0) {
     consumer_marker_opacity = [0, 1];
   }
 
-  // Fill changes.
-  dynamic_elements[old_row.id].fill = dynamic_elements[old_row.derived_id].fill;
-
-  let fill_change = undefined;
-  if(pq_data.style.fill) {
-    const new_fill = pq_data.style.fill(old_row, new_row);      
-    fill_change = [dynamic_elements[old_row.id].fill, new_fill];
-    dynamic_elements[old_row.id].fill = new_fill;
-  }
+  consumer_marker_data.rendering.left_x = consumer_marker_after_x;
+  pack(consumer_marker_data);
 
   return {
     kind: "keep",
-    data: {
-      old_row: old_row,
-      new_row: new_row,
-      processed_by: processed_by,
-      consumer_id: dynamic_elements.consumer_markers[old_row.collection][old_row.partition][processed_by].id,
-      old_offsets: old_offsets,
-      new_offsets: new_offsets,
-      old_stream_time: action.old_stream_time,
-      new_stream_time: action.new_stream_time,
-      stream_time_id: pq_data.stream_time.id
-    },
+    action: action,
     animations: {
       appear: {
-        fill: dynamic_elements[old_row.derived_id].fill
       },
       move_to_pq_center: {
         translateX: (move_to_pq_center_x - appear_x),
@@ -103,22 +131,24 @@ export function keep_animation_sequence(action, layout_index, dynamic_elements, 
         translateX: (enter_partition_x - move_to_partition_center_x)
       },
       move_consumer_marker: {
-        translateX: (consumer_marker_old_x - consumer_marker_new_x),
+        translateX: (consumer_marker_before_x - consumer_marker_after_x),
         opacity: consumer_marker_opacity
       }
     }
   };
 }
 
-export function keep_animations(change, t, history, lineage, styles) {
-  const { data, animations } = change;
-  const { ms_px } = styles;
+export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles) {
+  const { t, history } = ctx;
+  const { action, animations } = action_animation_seq;
+  const { by_name, by_id } = data_fns;
+  const { ms_px, d_row_appear_ms } = styles;
 
-  const pq_t = (t[data.processed_by] || 0);
-  const row_history = (history[lineage[data.old_row.id]] || 0);
+  const pq_t = (t[action.processed_by] || 0);
+  const row_history = (history[lineage[action.before.row.id]] || 0);
   const t_offset = ((row_history >= pq_t) ? row_history : pq_t);
 
-  const appear_ms = 250;
+  const appear_ms = d_row_appear_ms;
   const move_to_pq_center_ms = ms_for_translate(animations.move_to_pq_center, ms_px);
   const approach_pq_ms = ms_for_translate(animations.approach_pq, ms_px);
   const traverse_pq_ms = ms_for_translate(animations.traverse_pq, ms_px);
@@ -131,13 +161,12 @@ export function keep_animations(change, t, history, lineage, styles) {
   const row_movement = {
     t: t_offset,
     params: {
-      targets: `.id-${data.old_row.id}`,
+      targets: `#${action.after.row.id}`,
       easing: "linear",
       keyframes: [
         {
           duration: appear_ms,
-          opacity: [0, 1],
-          fill: animations.appear.fill
+          opacity: [0, 1]
         },
         {
           duration: move_to_pq_center_ms,
@@ -170,8 +199,8 @@ export function keep_animations(change, t, history, lineage, styles) {
     }
   };
 
-  t[data.processed_by] = (t_offset + appear_ms + move_to_pq_center_ms + approach_pq_ms);
-  history[data.old_row.id] = (
+  t[action.processed_by] = (t_offset + appear_ms + move_to_pq_center_ms + approach_pq_ms);
+  history[action.before.row.id] = (
     t_offset +
       appear_ms +
       move_to_pq_center_ms +
@@ -182,10 +211,15 @@ export function keep_animations(change, t, history, lineage, styles) {
       enter_partition_ms
   );
 
+  const before_record = action.before.row.vars.record;
+  const before_stream_data = by_name(before_record.stream);
+  const before_part_data = before_stream_data.children.partitions[before_record.partition];
+  const consumer_marker_id = before_part_data.vars.indexed_consumer_markers[action.processed_by];
+
   const consumer_marker_movement = {
-    t: t_offset + appear_ms,
+    t: (t_offset + appear_ms + move_to_pq_center_ms + approach_pq_ms),
     params: {
-      targets: `.coll-${data.old_row.collection}.partition-${data.old_row.partition}.consumer-${data.processed_by}.id-${data.consumer_id}`,
+      targets: `#${consumer_marker_id}`,
       easing: "linear",
       keyframes: [
         {
@@ -200,49 +234,23 @@ export function keep_animations(change, t, history, lineage, styles) {
     }
   };
 
-  const update_offset_text = {
-    t: (
-      t_offset +
-        appear_ms +
-        move_to_pq_center_ms +
-        approach_pq_ms
-    ),
-    apply: function() {
-      update_pq_offsets(data.processed_by, data.new_offsets);
-    },
-    undo: function() {
-      update_pq_offsets(data.processed_by, data.old_offsets);
-    }
-  };
-
   const update_stream_time = {
-    t: (
-      t_offset +
-        appear_ms +
-        move_to_pq_center_ms +
-        approach_pq_ms
-    ),
+    t: (t_offset + appear_ms + move_to_pq_center_ms + approach_pq_ms),
     apply: function() {
-      update_stream_time_text(data.stream_time_id, data.new_stream_time);
+      c.update_stream_time_text(data_fns, action.processed_by, action.after);
     },
     undo: function() {
-      update_stream_time_text(data.stream_time_id, data.old_stream_time);
+      c.update_stream_time_text(data_fns, action.processed_by, action.before);
     }
   };
 
-  const update_row_summary = {
-    t: (
-      t_offset +
-        appear_ms +
-        move_to_pq_center_ms +
-        approach_pq_ms +
-        traverse_pq_ms
-    ),
+  const update_pq_offsets = {
+    t: (t_offset + appear_ms + move_to_pq_center_ms + approach_pq_ms),
     apply: function() {
-      update_row_popover(data.old_row.id, data.new_row);
+      c.update_pq_offsets(data_fns, action.processed_by, action.after.offsets);
     },
     undo: function() {
-      update_row_popover(data.old_row.id, data.old_row);
+      c.update_pq_offsets(data_fns, action.processed_by, action.before.offsets);
     }
   };
 
@@ -252,9 +260,8 @@ export function keep_animations(change, t, history, lineage, styles) {
       consumer_marker_movement
     ],
     callbacks: [
-      update_offset_text,
       update_stream_time,
-      update_row_summary
+      update_pq_offsets
     ]
   };
 }

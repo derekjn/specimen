@@ -1,15 +1,19 @@
-import { select_keys, uuidv4, cycle_array } from './util';
+import { uuidv4, cycle_array } from './util';
+import cloneDeep from "lodash/cloneDeep";
 
-function choose_lowest_timestamp(collections, offsets) {
+function choose_lowest_timestamp(streams, offsets) {
   let choices = []
 
-  Object.entries(collections).forEach(([name, { partitions }]) => {
-    Object.entries(partitions).forEach(([id, partition]) => {
-      const offset = offsets[name][id];
+  streams.forEach(s => {
+    const { id, name, children } = s;
+    const { partitions } = children;
 
-      if (partition[offset] != undefined) {
-        const props = { collection: name, partition: id };
-        choices.push({ ...partition[offset], ...props });
+    partitions.forEach((partition, i) => {
+      const offset = offsets[name][i];
+      const row = partition.children.rows[offset];
+
+      if (row != undefined) {
+        choices.push(row);
       }
     });
   });
@@ -17,7 +21,7 @@ function choose_lowest_timestamp(collections, offsets) {
   return choices.reduce((result, row) => {
     if (result == undefined) {
       return row;
-    } else if (row.t < result.t) {
+    } else if (row.vars.record.t < result.vars.record.t) {
       return row;
     } else {
       return result;
@@ -25,68 +29,69 @@ function choose_lowest_timestamp(collections, offsets) {
   }, undefined);
 }
 
-function without_sinks(colls, sinks) {
-  return Object.entries(colls).reduce((all, [name, coll]) => {
-    if (!sinks.includes(coll.name)) {
-      all[name] = coll;
-    }
-
-    return all;
-  }, {});
-}
-
-function is_drained(non_sinks, offsets) {
-  return Object.entries(offsets).every(([pq, colls]) => {
-    return Object.entries(colls).every(([coll, partitions]) => {
+function is_drained(offsets, by_name) {
+  return Object.entries(offsets).every(([pq, streams]) => {
+    return Object.entries(streams).every(([stream, partitions]) => {
       return Object.entries(partitions).every(([partition, offset]) => {
-        return offset == non_sinks[coll].partitions[partition].length;
+        const stream_data = by_name(stream);
+        const partitions = stream_data.children.partitions;
+        const rows = partitions[partition].children.rows;
+
+        return offset == rows.length;
       });
     });
   });
 }
 
-function swap_partitions(pq, colls, offsets, old_row, new_row) {
-  new_row.offset = colls[new_row.collection].partitions[new_row.partition].length;
-  colls[new_row.collection].partitions[new_row.partition].push(new_row);
-  offsets[pq][old_row.collection][old_row.partition]++;
+function swap_partitions(by_name, pack, pq, offsets, before_row, after_row) {
+  const after_stream_name = after_row.vars.record.stream;
+  const after_partition = after_row.vars.record.partition;
+
+  const after_stream_data = by_name(after_stream_name);
+  const after_partition_data = after_stream_data.children.partitions[after_partition];
+
+  after_row.vars.record.offset = after_partition_data.children.rows.length;
+  after_partition_data.children.rows.push(after_row);
+
+  const before_offset = offsets[pq][before_row.vars.record.stream][before_row.vars.record.partition];
+  offsets[pq][before_row.vars.record.stream][before_row.vars.record.partition] = before_offset + 1;
+
+  pack(after_partition_data);
 }
 
-function initialize_offsets(specimen, pqs, colls) {
+function initialize_offsets(pqs, streams, by_name) {
   return pqs.reduce((all_pqs, pq) => {
-    const parent_colls = specimen.parents(pq);
+    const parents = pq.graph.predecessors;
 
-    const coll_offsets = parent_colls.reduce((all_colls, parent) => {
-      const partitions = Object.keys(colls[parent].partitions);
+    const stream_offsets = parents.reduce((all_streams, parent) => {
+      const parent_data = by_name(parent);
+      const partitions = parent_data.children.partitions;
 
-      const partition_offsets = partitions.reduce((all_partitions, partition) => {
-        all_partitions[partition] = 0;
-        return all_partitions;
-      }, {});
+      const partition_offsets = [...Array(partitions.length).keys()]
+            .reduce((all, i) => {
+              all[i] = 0;
+              return all;
+            }, {});
 
-      all_colls[parent] = partition_offsets;
-      return all_colls;
+      all_streams[parent] = partition_offsets;
+      return all_streams;
     }, {});
 
-    all_pqs[pq] = coll_offsets;
+    all_pqs[pq.name] = stream_offsets;
     return all_pqs;
   }, {});
 }
 
-function set_new_collection(new_row, into) {
-  new_row.collection = into;
+function set_after_stream(after_row, into) {
+  after_row.vars.record.stream = into;
 }
 
-function set_new_partition(context, new_row, partition_by) {
+function repartition(context, before_row, after_row, partition_by) {
   if (partition_by) {
-    const key = partition_by(context, new_row);
-    new_row.key = key;
-    new_row.partition = key % context.partitions;
+    const key = partition_by(context, before_row.vars.record, after_row.vars.record);
+    after_row.vars.record.key = key;
+    after_row.vars.record.partition = key % context.partitions;
   }
-}
-
-function clone_offsets(m) {
-  return Object.entries(m)
-    .reduce((acc, [k, v])=> (acc[k]={...v}, acc), {});
 }
 
 function initialize_stream_time(pqs) {
@@ -104,121 +109,160 @@ function update_stream_time(stream_time, pq, t) {
   }
 }
 
-function evaluate_select(runtime_context, query_context, query_parts, old_row) {
-  const { colls, offsets, stream_time, lineage, pq } = runtime_context;
+function evaluate_select(runtime_context, query_context, query_parts, before_row) {
+  const { by_name, pack, pq, offsets, stream_time, lineage } = runtime_context;
   const { into, partition_by } = query_parts;
 
-  const old_offsets = clone_offsets(offsets[pq]);
-  const old_stream_time = stream_time[pq];
+  const before_offsets = cloneDeep(offsets[pq]);
+  const before_stream_time = stream_time[pq];
 
-  const new_row = { ...old_row };
+  const after_row = { ...cloneDeep(before_row), ...{ id: uuidv4() } };
+  after_row.vars.derived_id = before_row.id;
 
-  set_new_collection(new_row, into);
-  set_new_partition(query_context, new_row, partition_by);
+  set_after_stream(after_row, into);
+  repartition(query_context, before_row, after_row, partition_by);
 
-  old_row.id = uuidv4();
-  new_row.derived_id = old_row.id;
+  swap_partitions(by_name, pack, pq, offsets, before_row, after_row);
+  update_stream_time(stream_time, pq, before_row.vars.record.t);
 
-  swap_partitions(pq, colls, offsets, old_row, new_row);
-  update_stream_time(stream_time, pq, old_row.t);
-
-  if (old_row.derived_id) {
-    lineage[old_row.id] = old_row.derived_id;
+  if (before_row.vars.derived_id) {
+    lineage[before_row.id] = before_row.vars.derived_id;
   } else {
-    old_row.derived_id = old_row.source_id;
+    before_row.vars.derived_id = before_row.vars.source_id;
   }
 
   return {
     kind: "keep",
-    from: old_row.collection,
-    to: new_row.collection,
-    processed_by: pq,
-    old_row: old_row,
-    new_row: new_row,
-    new_offsets: clone_offsets(offsets[pq]),
-    old_offsets: old_offsets,
-    old_stream_time: old_stream_time,
-    new_stream_time: stream_time[pq]
+    before: {
+      row: before_row,
+      offsets: before_offsets,
+      stream_time: before_stream_time
+    },
+    after: {
+      row: after_row,
+      offsets: cloneDeep(offsets[pq]),
+      stream_time: stream_time[pq]
+    },
+    processed_by: pq
   };
 }
 
-function execute_filter(runtime_context, query_context, query_parts, old_row) {
-  const { offsets, stream_time, pq } = runtime_context;
+function execute_filter(runtime_context, query_context, query_parts, before_row) {
+  const { offsets, stream_time, pq, pack } = runtime_context;
 
-  const old_offsets = clone_offsets(offsets[pq]);
-  const old_stream_time = stream_time[pq];
+  const before_record = before_row.vars.record;
+  const before_offsets = cloneDeep(offsets[pq]);
+  const before_stream_time = stream_time[pq];
 
-  old_row.id = uuidv4();
-  offsets[pq][old_row.collection][old_row.partition]++;
-  update_stream_time(stream_time, pq, old_row.t);
+  offsets[pq][before_record.stream][before_record.partition]++;
+  update_stream_time(stream_time, pq, before_row.vars.record.t);
 
-  if (old_row.derived_id) {
-    lineage[old_row.id] = old_row.derived_id;
+  const after_row = { ...cloneDeep(before_row), ...{ id: uuidv4() } };
+  after_row.vars.derived_id = before_row.id;
+  pack(after_row);
+
+  if (before_row.vars.derived_id) {
+    lineage[before_row.id] = before_row.vars.derived_id;
   } else {
-    old_row.derived_id = old_row.source_id;
+    before_row.vars.derived_id = before_row.vars.source_id;
   }
-
 
   return {
     kind: "discard",
-    old_row: old_row,
-    from: old_row.collection,
-    processed_by: pq,
-    new_offsets: clone_offsets(offsets[pq]),
-    old_offsets: old_offsets,
-    old_stream_time: old_stream_time,
-    new_stream_time: stream_time[pq]
+    before: {
+      row: before_row,
+      offsets: before_offsets,
+      stream_time: before_stream_time
+    },
+    after: {
+      row: after_row,
+      offsets: cloneDeep(offsets[pq]),
+      stream_time: stream_time[pq]
+    },
+    processed_by: pq
+  }
+}
+
+export function init_runtime(objs, data_fns) {
+  const streams = objs.filter(component => component.kind == "stream");
+  const pqs = objs.filter(component => component.kind == "persistent_query");
+  const pq_seq = pqs.map(pq => pq.name);
+
+  const { by_name } = data_fns;
+
+  return {
+    streams: streams,
+    pqs: pqs,
+    pq_seq: pq_seq,
+    offsets: initialize_offsets(pqs, streams, by_name),
+    stream_time: initialize_stream_time(pq_seq),
+    lineage: {},
+    data_fns: data_fns
   };
 }
 
-export function run_until_drained(specimen) {
-  const kinds = specimen.node_kinds();
-  const colls = kinds.collection;
-  const pqs = kinds.persistent_query;
-  const sinks = specimen.sink_collections();
-  const non_sinks = without_sinks(colls, sinks);
+export function tick(rt_context) {
+  const { streams, pqs, offsets, stream_time, lineage, data_fns } = rt_context;
+  const { by_name, pack } = data_fns;
 
-  let pq_seq = Object.keys(pqs);
-  let actions = [];
-  let lineage = {};
-  let offsets = initialize_offsets(specimen, pq_seq, colls);
-  let stream_time = initialize_stream_time(pq_seq);
+  const drained = is_drained(offsets, by_name);
+  let pq_seq = rt_context.pq_seq;
+  let action = undefined;
 
-  while (!is_drained(non_sinks, offsets)) {
+  if (!drained) {
     const pq = pq_seq[0];
-    const parents = specimen.parents(pq);
-    const parent_colls = select_keys(colls, parents);    
-    const old_row = choose_lowest_timestamp(parent_colls, offsets[pq]);
+    const pq_data = by_name(pq);
+    const parent_stream_names = pq_data.graph.predecessors;
+    const parent_streams = parent_stream_names.map(s => by_name(s));
+
+    const before_row = choose_lowest_timestamp(parent_streams, offsets[pq]);
+
     const runtime_context = {
-      pq, colls, offsets, stream_time, lineage
+      by_name,
+      pack,
+      pq,
+      offsets,
+      stream_time,
+      lineage
     };
 
-    if (old_row) {
-      const query_parts = pqs[pq];
-      const { into, where, partition_by } = query_parts;
+    if (before_row) {
+      const query_parts = pq_data.vars.query_parts;
+      const sink_data = by_name(query_parts.into);
+      const sink_partitions = sink_data.children.partitions;
+      
       const query_context = {
-        partitions: Object.keys(colls[into].partitions).length
+        partitions: sink_partitions.length
       };
 
-      if (where) {
-        if (where(query_context, old_row)) {
-          const action = evaluate_select(runtime_context, query_context, query_parts, old_row);
-          actions.push(action);
+      if (query_parts.where) {
+        if (query_parts.where(query_context, before_row.vars.record)) {
+          action = evaluate_select(runtime_context, query_context, query_parts, before_row);
         } else {
-          const action = execute_filter(runtime_context, query_context, query_parts, old_row);
-          actions.push(action);
+          action = execute_filter(runtime_context, query_context, query_parts, before_row);
         }
       } else {
-        const action = evaluate_select(runtime_context, query_context, query_parts, old_row);
-        actions.push(action);
+        action = evaluate_select(runtime_context, query_context, query_parts, before_row);
       }
     }
-    
-    pq_seq = cycle_array(pq_seq);
-  }
 
-  return {
-    actions: actions,
-    lineage: lineage
-  };
+    pq_seq = cycle_array(pq_seq);
+
+    return {
+      ...rt_context,
+      ...{
+        drained: false,
+        pq_seq: pq_seq,
+        action: action
+      }
+    };
+  } else {
+    return {
+      ...rt_context,
+      ...{
+        drained: true,
+        action: action
+      }
+    };
+  }
 }

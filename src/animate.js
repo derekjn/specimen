@@ -1,66 +1,44 @@
-import { build_dynamic_container_data, build_dynamic_row_data } from './components/row';
-import { keep_animation_sequence, keep_animations } from './animations/keep';
-import { discard_animation_sequence, discard_animations } from './animations/discard';
-import { select_keys, relative_add, relative_sub } from './util';
+import * as k from "./animations/keep";
+import * as d from "./animations/discard";
 
-export function build_dynamic_elements_data(layout_index, actions, styles) {
-  return actions.reduce((all, action) => {
-    const { kind, from, old_row } = action;
+let update_layout_fns = {
+  "keep": k.update_layout,
+  "discard": k.update_layout
+};
 
-    const right_x = layout_index[old_row.collection].partitions[old_row.partition].right_x;
-    const top_y = layout_index[old_row.collection].partitions[old_row.partition].brackets.tr.y;
+let animation_seq_fns = {
+  "keep": k.animation_seq,
+  "discard": d.animation_seq,
+};
 
-    all[old_row.id] = build_dynamic_row_data(old_row, styles, {
-      right_x: right_x,
-      top_y: top_y
-    });
+let anime_data_fns = {
+  "keep": k.anime_data,
+  "discard": d.anime_data
+};
 
-    return all;
-  }, {});
+export function init_animation_context() {
+  return {
+    t: {},
+    history: {}
+  };
 }
 
-export function animation_sequence(layout_index, dynamic_elements, actions, styles) {
-  const animation_fns = {
-    "keep": keep_animation_sequence,
-    "discard": discard_animation_sequence
-  };
-
-  let seq = [];
-
-  actions.forEach(action => {
-    const fn = animation_fns[action.kind];
-    seq.push(fn(action, layout_index, dynamic_elements, styles));
-  });
+export function update_layout(action, data_fns, styles, free_el) {
+  const { by_id } = data_fns;
   
-  return seq;
+  const layout_fn = update_layout_fns[action.kind];
+  layout_fn(action, data_fns, styles, free_el);
+
+  // The layout has mutated, so this row needs to be refreshed.
+  action.after.row = by_id(action.after.row.id);
 }
 
-export function anime_data(seq, lineage, styles) {
-  const ms_px = 3;
-  const animation_fns = {
-    "keep": keep_animations,
-    "discard": discard_animations
-  };
+export function animation_seq(action, data_fns, styles) {
+  const animation_seq_fn = animation_seq_fns[action.kind];
+  return animation_seq_fn(action, data_fns, styles);
+}
 
-  let result = {
-    commands: [],
-    callbacks: []
-  };
-  let history = {};
-  let t = {};
-
-  seq.forEach((change) => {
-    const fn = animation_fns[change.kind];
-    const { commands: cmds, callbacks: cbs } = fn(change, t, history, lineage, styles);
-
-    cmds.forEach(cmd => {
-      result.commands.push(cmd);
-    });
-
-    cbs.forEach(cb => {
-      result.callbacks.push(cb)
-    });
-  });
-
-  return result;
+export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles) {
+  const anime_data_fn = anime_data_fns[action_animation_seq.kind];
+  return anime_data_fn(ctx, action_animation_seq, data_fns, lineage, styles);
 }
