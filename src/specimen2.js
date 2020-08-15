@@ -180,10 +180,39 @@ Specimen.prototype.draw_layout = function(layout) {
 
 Specimen.prototype.animate = function(by_id) {
   let progress_el = undefined;
-  
+
+  let anime_commands = [];
+  let anime_callbacks = {
+    cbs: [],
+    index: 0
+  };
+
   const timeline = anime.timeline({
     autoplay: false,
     update: function(anim) {
+      const anime_t = anim.currentTime;
+
+      if (!anim.reversePlayback) {
+        if (anime_callbacks.index < 0) {
+          anime_callbacks.index = 0;
+        }
+
+        while ((anime_callbacks.index < anime_callbacks.cbs.length) &&
+               (anime_callbacks.cbs[anime_callbacks.index].t <= anime_t)) {
+          anime_callbacks.cbs[anime_callbacks.index].apply();
+          anime_callbacks.index++;
+        }
+      } else {
+        if (anime_callbacks.index >= anime_callbacks.cbs.length) {
+          anime_callbacks.index = anime_callbacks.cbs.length - 1;
+        }
+
+        while ((anime_callbacks.index >= 0) && anime_callbacks.cbs[anime_callbacks.index].t >= anime_t) {
+          anime_callbacks.cbs[anime_callbacks.index].undo();
+          anime_callbacks.index--;
+        }
+      }
+
       progress_el.value = timeline.progress;
     }
   });
@@ -206,7 +235,10 @@ Specimen.prototype.animate = function(by_id) {
 
   const query_text_el = document.getElementById(unpack_by_name("query-text").id);
 
-  const controls_data = controls.build_data({}, this._styles, { timeline: timeline });
+  const controls_data = controls.build_data({}, this._styles, {
+    timeline: timeline,
+    callbacks: anime_callbacks,
+  });
   const controls_el = controls.render(controls_data);
 
   const free_data = f.build_data({}, this._styles, {});
@@ -219,9 +251,6 @@ Specimen.prototype.animate = function(by_id) {
   let rt_context = rt.init_runtime(objs, data_fns);
   const animation_context = a.init_animation_context();
 
-  let anime_commands = [];
-  let anime_callbacks = [];
-
   while (rt_context.drained != true) {
     const next_context = rt.tick(rt_context)
     const action = next_context.action;
@@ -229,17 +258,28 @@ Specimen.prototype.animate = function(by_id) {
 
     if (action) {
       a.update_layout(action, data_fns, this._styles, free_el);
-      const action_animation_seq = a.animation_seq(action, data_fns, this._styles);
-      const action_anime_data = a.anime_data(animation_context, action_animation_seq, lineage, this._styles);
+      const animation_seq = a.animation_seq(action, data_fns, this._styles);
+      const anime_data = a.anime_data(animation_context, animation_seq, data_fns, lineage, this._styles);
 
-      anime_commands = anime_commands.concat(action_anime_data.commands);
-      anime_callbacks = anime_callbacks.concat(action_anime_data.callbacks);
+      anime_commands = anime_commands.concat(anime_data.commands);
+      anime_callbacks.cbs = anime_callbacks.cbs.concat(anime_data.callbacks);
     }
 
     rt_context = next_context;
   }
 
   anime_commands.forEach(c => timeline.add(c.params, c.t));
+
+  // Use a sorted data structure to skip this.
+  anime_callbacks.cbs.sort(function(a, b) {
+    if (a.t < b.t) {
+      return -1;
+    } else if (a.t == b.t) {
+      return 0;
+    } else {
+      return 1;
+    }
+  });
 }
 
 Specimen.prototype.render = function() {

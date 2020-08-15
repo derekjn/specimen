@@ -1,7 +1,8 @@
 import { uuidv4 } from './../util';
 
 export function build_data(config, styles, computed) {
-  const { timeline } = computed;
+  const { seek_ms } = styles;
+  const { timeline, callbacks } = computed;
   
   return {
     kind: "controls",
@@ -35,14 +36,16 @@ export function build_data(config, styles, computed) {
       }
     },
     vars: {
-      timeline: timeline
+      timeline: timeline,
+      callbacks: callbacks,
+      seek_ms: seek_ms
     }
   };
 }
 
 export function render(data) {
   const { id, rendering, vars } = data;
-  const { timeline } = vars;
+  const { timeline, callbacks, seek_ms } = vars;
 
   const div = document.createElement("div");
   div.id = id;
@@ -61,15 +64,34 @@ export function render(data) {
   const restart = document.createElement("button");
   restart.id = rendering.restart.id;
   restart.textContent = rendering.restart.text;
-  restart.onclick = timeline.restart;
+  restart.onclick = () => {
+    if (callbacks.index >= callbacks.cbs.length) {
+      callbacks.index = callbacks.cbs.length - 1;
+    }
+
+    while ((callbacks.index >= 0) && callbacks.cbs[callbacks.index].t >= 0) {
+      callbacks.cbs[callbacks.index].undo();
+      callbacks.index--;
+    }
+
+    timeline.restart();
+  };
 
   const manual_left = document.createElement("button");
   manual_left.id = rendering.manual_left.id;
   manual_left.textContent = rendering.manual_left.text;
+  manual_left.onclick = () => {
+    timeline.pause();
+    timeline.seek(Math.max(0, timeline.currentTime - seek_ms));
+  };
 
   const manual_right = document.createElement("button");
   manual_right.id = rendering.manual_right.id;
   manual_right.textContent = rendering.manual_right.text;
+  manual_right.onclick = () => {
+    timeline.pause();
+    timeline.seek(Math.min(timeline.duration, timeline.currentTime + seek_ms));
+  };
 
   const progress = document.createElement("input");
   progress.id = rendering.progress.id;

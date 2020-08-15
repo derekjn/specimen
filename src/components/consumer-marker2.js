@@ -1,22 +1,35 @@
-import { uuidv4 } from './../util';
+import { uuidv4, create_svg_el } from './../util';
 
 export function build_data(config, styles, computed) {
+  const { partition, pq_name } = config;
+
+  const {
+    consumer_m_init_margin_left,
+    consumer_m_text_margin_bottom,
+    consumer_m_offset_bottom,
+  } = styles;
+
+  const { left_x, bottom_y } = computed;
+
+  const x = (left_x + consumer_m_init_margin_left);
+  const arrow_y = (bottom_y - consumer_m_offset_bottom);
+  const text_y = (arrow_y - consumer_m_text_margin_bottom);
+
   return {
     kind: "consumer_marker",
     id: uuidv4(),
     rendering: {
-      x: ?,
-      arrow_y: ?,
-      text_y: ?
+      left_x: x,
+      arrow_y: arrow_y,
+      text_y: text_y
     },
     vars: {
-      collection: ?,
-      partition: ?,
-      pq_name: ?,
+      partition: partition,
+      pq_name: pq_name,
       arrow: "↓"
     },
     refs: {
-      top_y: ?
+      top_y: text_y
     }
   };
 }
@@ -24,22 +37,22 @@ export function build_data(config, styles, computed) {
 export function render(data) {
   const { id, vars, rendering } = data;
 
-  const g = document.createElement("g");
+  const g = create_svg_el("g");
   g.id = id;
-  g.setAttribute("data-collection", vars.collection);
-  g.setAttribute("data-partition", vars.partition);
+  g.setAttributeNS(null, "data-partition", vars.partition);
 
-  const arrow_text = document.createElement("text");
-  arrow_text.setAttribute("x", rendering.x);
-  arrow_text.setAttribute("y", rendering.arrow_y);
+  const arrow_text = create_svg_el("text");
+  arrow_text.setAttributeNS(null, "x", rendering.left_x);
+  arrow_text.setAttributeNS(null, "y", rendering.arrow_y);
   arrow_text.classList.add("code");
-  arrow_text.innerText = vars.arrow;
+  arrow_text.textContent = vars.arrow;
 
-  const consumer_text = document.createElement("text");
-  consumer_text.setAttribute("x", rendering.x);
-  consumer_text.setAttribute("y", rendering.text_y);
-  consumer_text.setAttribute("text-anchor", "middle");
+  const consumer_text = create_svg_el("text");
+  consumer_text.setAttributeNS(null, "x", rendering.left_x);
+  consumer_text.setAttributeNS(null, "y", rendering.text_y);
+  consumer_text.setAttributeNS(null, "text-anchor", "middle");
   consumer_text.classList.add("code");
+  consumer_text.textContent = vars.pq_name;
 
   g.appendChild(consumer_text);
   g.appendChild(arrow_text);

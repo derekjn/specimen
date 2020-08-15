@@ -15,6 +15,7 @@ export function build_data(config, styles, computed) {
     top_y: top_y_slide,
     midpoint_x: midpoint_x
   });
+
   top_y_slide = label_data.refs.bottom_y + coll_label_margin_bottom;
 
   let partitions_data = [];
@@ -25,7 +26,7 @@ export function build_data(config, styles, computed) {
     };
 
     const part_data = p.build_data(config, styles, {
-      part: partition,
+      successors: successors,
       top_y: top_y_slide,
       midpoint_x: midpoint_x
     });

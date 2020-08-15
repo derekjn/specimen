@@ -34,7 +34,7 @@ export function animation_seq(action, data_fns, styles) {
   return animation_seq_fn(action, data_fns, styles);
 }
 
-export function anime_data(ctx, action_animation_seq, lineage, styles) {
+export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles) {
   const anime_data_fn = anime_data_fns[action_animation_seq.kind];
-  return anime_data_fn(ctx, action_animation_seq, lineage, styles);
+  return anime_data_fn(ctx, action_animation_seq, data_fns, lineage, styles);
 }

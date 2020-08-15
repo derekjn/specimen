@@ -1,5 +1,34 @@
 import * as r from './row2';
+import * as c from './consumer-marker2';
 import { uuidv4, create_svg_el } from './../util';
+
+function build_consumer_markers_data(partition, pqs, styles, computed) {
+  const { right_x, bottom_y } = computed;
+
+  let this_bottom_y = bottom_y;
+  const result = [];
+
+  pqs.forEach(pq_name => {
+    const config = { partition, pq_name };
+    const marker = c.build_data(config, styles, {
+      left_x: right_x,
+      bottom_y: this_bottom_y
+    });
+
+    result.push(marker);
+    this_bottom_y += marker.refs.top_y;
+  });
+
+  return result;
+}
+
+function find_top_y(consumer_markers_data, top_y) {
+  if (consumer_markers_data.length == 0) {
+    return top_y;
+  } else {
+    return consumer_markers_data.slice(-1)[0].refs.top_y;
+  }
+}
 
 export function build_data(config, styles, computed) {
   const { partition, rows } = config;
@@ -7,7 +36,7 @@ export function build_data(config, styles, computed) {
   const { part_bracket_len, part_width, part_height, part_id_margin_top, part_id_margin_left } = styles;
   const { row_height, row_width, row_margin_left, row_offset_right } = styles;
 
-  const { top_y, midpoint_x } = computed;
+  const { successors, top_y, midpoint_x } = computed;
 
   const b_len = part_bracket_len;
 
@@ -18,6 +47,7 @@ export function build_data(config, styles, computed) {
 
   let row_x = right_x - row_offset_right - row_width;
   let rows_data = [];
+
   rows.forEach(row => {
     rows_data.push(r.build_data(row, styles, {
       left_x: row_x,
@@ -25,6 +55,13 @@ export function build_data(config, styles, computed) {
     }));
     row_x -= (row_width + row_margin_left);
   });
+
+  const consumer_markers_data = build_consumer_markers_data(partition, successors, styles, {
+    right_x: right_x,
+    bottom_y: top_y
+  });
+
+  const absolute_top_y = find_top_y(consumer_markers_data, top_y);
 
   return {
     kind: "partition",
@@ -65,13 +102,14 @@ export function build_data(config, styles, computed) {
       partition_id: partition
     },
     refs: {
-      top_y: top_y,
+      top_y: absolute_top_y,
       midpoint_y: midpoint_y,
       right_x: right_x,
       left_x: left_x
     },
     children: {
-      rows: rows_data
+      rows: rows_data,
+      consumer_markers: consumer_markers_data
     }
   };
 }
@@ -80,7 +118,7 @@ export function render(data, styles, computed) {
   const { id, vars, rendering, children } = data;
   const { partition_label, brackets } = rendering;
   const { tl, tr, bl, br } = brackets;
-  const { rows } = children;
+  const { rows, consumer_markers } = children;
 
   const g = create_svg_el("g");
   g.id = id;
@@ -90,7 +128,7 @@ export function render(data, styles, computed) {
   text.setAttributeNS(null, "x", partition_label.x);
   text.setAttributeNS(null, "y", partition_label.y);
   text.classList.add("code");
-  text.innerText = vars.partition_id;
+  text.textContent = vars.partition_id;
 
   const d_tl = create_svg_el("path");
   d_tl.setAttributeNS(null, "d", `M ${tl.x},${tl.y} h ${tl.h} v ${tl.v}`);
@@ -114,12 +152,19 @@ export function render(data, styles, computed) {
   const d_rows = rows.map(row => r.render(row));
   d_rows.forEach(row => rows_g.appendChild(row));
 
+  const markers_g = create_svg_el("g");
+  markers_g.classList.add("consumer-markers");
+
+  const d_consumer_markers = consumer_markers.map(marker => c.render(marker));
+  d_consumer_markers.forEach(marker => markers_g.appendChild(marker));
+
   g.appendChild(text);
   g.appendChild(d_tl);
   g.appendChild(d_tr);
   g.appendChild(d_bl);
   g.appendChild(d_br);
   g.appendChild(rows_g);
+  g.appendChild(markers_g);
 
   return g;
 }

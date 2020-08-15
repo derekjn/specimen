@@ -1,5 +1,6 @@
 import * as r from "./../components/row2";
-import { relative_add, relative_sub, ms_for_translate } from './../util';
+import * as c from "./common";
+import { relative_add, relative_sub, ms_for_translate } from "./../util";
 
 function adjust_rendering(action, data_fns, styles) {
   const { by_id, by_name, pack } = data_fns;
@@ -101,7 +102,7 @@ export function animation_seq(action, data_fns, styles) {
   };
 }
 
-export function anime_data(ctx, action_animation_seq, lineage, styles) {
+export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles) {
   const { t, history } = ctx;
   const { action, animations } = action_animation_seq;
   const { ms_px } = styles;
@@ -172,11 +173,43 @@ export function anime_data(ctx, action_animation_seq, lineage, styles) {
       enter_partition_ms
   );
 
+  const update_stream_time = {
+    t: (
+      t_offset +
+        appear_ms +
+        move_to_pq_center_ms +
+        approach_pq_ms
+    ),
+    apply: function() {
+      c.update_stream_time_text(data_fns, action.processed_by, action.after);
+    },
+    undo: function() {
+      c.update_stream_time_text(data_fns, action.processed_by, action.before);
+    }
+  };
+
+  const update_pq_offsets = {
+    t: (
+      t_offset +
+        appear_ms +
+        move_to_pq_center_ms +
+        approach_pq_ms
+    ),
+    apply: function() {
+      c.update_pq_offsets(data_fns, action.processed_by, action.after.offsets);
+    },
+    undo: function() {
+      c.update_pq_offsets(data_fns, action.processed_by, action.before.offsets);
+    }
+  };
+
   return {
     commands: [
       row_movement
     ],
     callbacks: [
+      update_stream_time,
+      update_pq_offsets
     ]
   };
 }

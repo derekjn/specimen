@@ -40,3 +40,11 @@ export function render(data) {
 
   return text;
 }
+
+export function update_time(stream_time, row) {
+  const { rendering, vars } = stream_time;
+  const id = rendering.subtext_id;  
+  const el = document.getElementById(id);
+
+  el.textContent = row.stream_time || vars.init;
+}

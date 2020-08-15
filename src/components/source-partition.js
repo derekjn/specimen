@@ -44,3 +44,16 @@ export function render(data) {
 
   return text;
 }
+
+
+export function update_offset(source_partition, offset) {
+  const { rendering, vars } = source_partition;
+  const id = rendering.subtext_id;
+  const el = document.getElementById(id);
+
+  if (offset < 0) {
+    el.textContent = vars.init;
+  } else {
+    el.textContent = offset;
+  }
+}

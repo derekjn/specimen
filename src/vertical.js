@@ -35,8 +35,15 @@ function stream_translate_y(data, height) {
 
     partition.children.rows = partition.children.rows.map(row => {
       row.rendering.y += height;
-
       return row;
+    });
+
+    partition.children.consumer_markers = partition.children.consumer_markers.map(marker => {
+      marker.rendering.arrow_y += height;
+      marker.rendering.text_y += height;
+      marker.refs.top_y += height;
+
+      return marker;
     });
 
     return partition;
