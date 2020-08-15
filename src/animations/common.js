@@ -1,5 +1,6 @@
 import * as st from "./../components/stream-time";
 import * as sp from "./../components/source-partition";
+import * as rc from "./../components/row-card";
 
 export function update_stream_time_text(data_fns, pq_name, row) {
   const { by_name } = data_fns;
@@ -21,4 +22,14 @@ export function update_pq_offsets(data_fns, pq_name, offsets) {
       sp.update_offset(sp_data, last_offset);
     });
   });
+}
+
+export function update_row_card(data_fns, row) {
+  const { by_id } = data_fns;
+
+  // TODO: Shouldn't need to look this up.
+  const card_data = by_id(row.children.row_card);
+  const record = row.vars.record;
+
+  rc.update_card_text(card_data, record);
 }

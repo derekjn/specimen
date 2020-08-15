@@ -3,6 +3,7 @@ import * as pq from "./components/persistent-query";
 import * as controls from "./components/controls";
 import * as svg from "./components/svg";
 import * as qt from "./components/query-text";
+import * as rc from "./components/row-card";
 import * as f from "./components/free";
 import * as ci from "./component-index";
 import * as v from "./vertical";
@@ -41,7 +42,6 @@ function add_metadata(component, styles) {
           value: row.value
         };
 
-        row.source_id = uuidv4();
         row.style = { ...{ fill: row_default_fill }, ...row.style };
       });
     });
@@ -269,6 +269,20 @@ Specimen.prototype.animate = function(by_id) {
   }
 
   anime_commands.forEach(c => timeline.add(c.params, c.t));
+
+  const external_el = document.createElement("div");
+  external_el.classList.add("external-objects");
+  
+  // Render cards last so that they are not overlapped by
+  // any other elements.
+  Object.values(by_id).forEach(obj => {
+    if (obj.kind == "row_card") {
+      const card_el = rc.render(obj);
+      external_el.appendChild(card_el);
+    }
+  });
+
+  svg_el.insertAdjacentElement("afterend", external_el);
 
   // Use a sorted data structure to skip this.
   anime_callbacks.cbs.sort(function(a, b) {

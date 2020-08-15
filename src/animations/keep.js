@@ -1,4 +1,5 @@
 import * as r from "./../components/row";
+import * as rc from "./../components/row-card";
 import * as c from "./common";
 import { relative_add, relative_sub, ms_for_translate } from "./../util";
 
@@ -14,10 +15,15 @@ function adjust_rendering(action, data_fns, styles) {
   const row_data = by_id(action.after.row.id);
 
   row_data.rendering.x = right_x;
+
+  // New card for new row.
+  const card_config = { row_id: row_data.id, record: action.before.row.vars.record };
+  row_data.children.row_card = rc.build_data(card_config, styles, {});
+
   pack(row_data);
 }
 
-function draw_new_object(action, data_fns) {
+function draw_new_row(action, data_fns) {
   const { by_id } = data_fns;
   const row_data = by_id(action.after.row.id);
 
@@ -26,8 +32,9 @@ function draw_new_object(action, data_fns) {
 
 export function update_layout(action, data_fns, styles, free_el) {
   adjust_rendering(action, data_fns, styles);
-  const obj = draw_new_object(action, data_fns);
-  free_el.appendChild(obj);
+
+  const row = draw_new_row(action, data_fns);
+  free_el.appendChild(row);
 }
 
 export function animation_seq(action, data_fns, styles) {
@@ -72,7 +79,6 @@ export function animation_seq(action, data_fns, styles) {
 
   after.row.rendering.x = enter_partition_x;
   after.row.rendering.y = move_to_partition_center_y;
-
 
   const before_fill = action.before.row.rendering.fill;
   let after_fill = undefined;
@@ -254,6 +260,16 @@ export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles)
     }
   };
 
+  const update_row_card = {
+    t: (t_offset + appear_ms + move_to_pq_center_ms + approach_pq_ms),
+    apply: function() {
+      c.update_row_card(data_fns, action.after.row);
+    },
+    undo: function() {
+//      c.update_row_card(data_fns, action.before.row);
+    }
+  };
+
   return {
     commands: [
       row_movement,
@@ -261,7 +277,8 @@ export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles)
     ],
     callbacks: [
       update_stream_time,
-      update_pq_offsets
+      update_pq_offsets,
+      update_row_card
     ]
   };
 }
