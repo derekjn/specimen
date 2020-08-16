@@ -97,35 +97,35 @@ function example(container) {
     ]
   });
 
-  // s.add_child(["s2"], {
-  //   name: "pq2",
-  //   kind: "persistent_query",
-  //   into: "s3",
-  //   query_text: [
-  //     "CREATE STREAM s2 AS",
-  //     "  SELECT col1, FLOOR(col2) AS f",
-  //     "  FROM s1",
-  //     "  WHERE col3 != 'foo'",
-  //     "  EMIT CHANGES;"
-  //   ],
-  //   // where: function(context, row) {
-  //   //   return row.value != 41 && row.value != 42;
-  //   // },
-  //   partition_by: function(context, before_row, after_row) {
-  //     return before_row.value;
-  //   }
-  // });  
+  s.add_child(["s2"], {
+    name: "pq2",
+    kind: "persistent_query",
+    into: "s3",
+    query_text: [
+      "CREATE STREAM s2 AS",
+      "  SELECT col1, FLOOR(col2) AS f",
+      "  FROM s1",
+      "  WHERE col3 != 'foo'",
+      "  EMIT CHANGES;"
+    ],
+    // where: function(context, row) {
+    //   return row.value != 41 && row.value != 42;
+    // },
+    partition_by: function(context, before_row, after_row) {
+      return before_row.value;
+    }
+  });  
 
-  // s.add_child(["pq2"], {
-  //   name: "s3",
-  //   kind: "stream",
-  //   partitions: [
-  //     [],
-  //     // [],
-  //     // [],
-  //     // []
-  //   ]
-  // });
+  s.add_child(["pq2"], {
+    name: "s3",
+    kind: "stream",
+    partitions: [
+      [],
+      [],
+      [],
+      []
+    ]
+  });
 
 
   // s.add_child(["s2"], {
