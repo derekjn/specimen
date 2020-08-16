@@ -21,6 +21,7 @@ function adjust_rendering(action, data_fns, styles) {
   row_data.children.row_card = rc.build_data(card_config, styles, {});
 
   pack(row_data);
+  action.after.row = by_id(row_data.id);
 }
 
 function draw_new_row(action, data_fns) {
@@ -91,6 +92,7 @@ export function animation_seq(action, data_fns, styles) {
   const fill_change = [before_fill, after_fill || before_fill];
 
   pack(after.row);
+  after.row = by_id(after.row.id);
 
   const consumer_marker_id = before_part_data.vars.indexed_consumer_markers[processed_by];
   const consumer_marker_data = by_id(consumer_marker_id);
@@ -260,13 +262,15 @@ export function anime_data(ctx, action_animation_seq, data_fns, lineage, styles)
     }
   };
 
+  const card_id = action.after.row.children.row_card.id;
+  
   const update_row_card = {
     t: (t_offset + appear_ms + move_to_pq_center_ms + approach_pq_ms),
     apply: function() {
-      c.update_row_card(data_fns, action.after.row);
+      c.update_row_card(data_fns, card_id, action.after.row);
     },
     undo: function() {
-//      c.update_row_card(data_fns, action.before.row);
+      c.update_row_card(data_fns, card_id, action.before.row);
     }
   };
 

@@ -24,11 +24,10 @@ export function update_pq_offsets(data_fns, pq_name, offsets) {
   });
 }
 
-export function update_row_card(data_fns, row) {
+export function update_row_card(data_fns, card_id, row) {
   const { by_id } = data_fns;
 
-  // TODO: Shouldn't need to look this up.
-  const card_data = by_id(row.children.row_card);
+  const card_data = by_id(card_id);
   const record = row.vars.record;
 
   rc.update_card_text(card_data, record);
