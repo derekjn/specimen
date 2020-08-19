@@ -189,28 +189,16 @@ Specimen.prototype.animate = function(by_id) {
 
   const timeline = anime.timeline({
     autoplay: false,
+    begin: function(anim) {
+      rewind_callbacks(anim, anime_callbacks);
+    },
     update: function(anim) {
       const anime_t = anim.currentTime;
 
       if (!anim.reversePlayback) {
-        if (anime_callbacks.index < 0) {
-          anime_callbacks.index = 0;
-        }
-
-        while ((anime_callbacks.index < anime_callbacks.cbs.length) &&
-               (anime_callbacks.cbs[anime_callbacks.index].t <= anime_t)) {
-          anime_callbacks.cbs[anime_callbacks.index].apply();
-          anime_callbacks.index++;
-        }
+        fastfoward_callbacks(anim, anime_callbacks);
       } else {
-        if (anime_callbacks.index >= anime_callbacks.cbs.length) {
-          anime_callbacks.index = anime_callbacks.cbs.length - 1;
-        }
-
-        while ((anime_callbacks.index >= 0) && anime_callbacks.cbs[anime_callbacks.index].t >= anime_t) {
-          anime_callbacks.cbs[anime_callbacks.index].undo();
-          anime_callbacks.index--;
-        }
+        rewind_callbacks(anim, anime_callbacks);
       }
 
       progress_el.value = timeline.progress;
@@ -245,7 +233,11 @@ Specimen.prototype.animate = function(by_id) {
   const free_el = f.render(free_data);
 
   svg_el.appendChild(free_el);
-  query_text_el.insertAdjacentElement("beforebegin", controls_el);
+
+  if (this._styles.render_controls) {
+    query_text_el.insertAdjacentElement("beforebegin", controls_el);
+  }
+
   progress_el = document.getElementById(controls_data.rendering.progress.id);
 
   let rt_context = rt.init_runtime(objs, data_fns);
@@ -273,8 +265,8 @@ Specimen.prototype.animate = function(by_id) {
   const external_el = document.createElement("div");
   external_el.classList.add("external-objects");
   
-  // Render cards last so that they are not overlapped by
-  // any other elements.
+  // Render cards last so that they fall outside
+  // the SVG to track the absolute cursor position.
   Object.values(by_id).forEach(obj => {
     if (obj.kind == "row_card") {
       const card_el = rc.render(obj);
@@ -300,4 +292,31 @@ Specimen.prototype.render = function() {
   const layout = this.horizontal_layout();
   const by_id = this.draw_layout(layout);
   this.animate(by_id);
+}
+
+function rewind_callbacks(anim, anime_callbacks) {
+  const anime_t = anim.currentTime;
+  
+  if (anime_callbacks.index >= anime_callbacks.cbs.length) {
+    anime_callbacks.index = anime_callbacks.cbs.length - 1;
+  }
+
+  while ((anime_callbacks.index >= 0) && anime_callbacks.cbs[anime_callbacks.index].t >= anime_t) {
+    anime_callbacks.cbs[anime_callbacks.index].undo();
+    anime_callbacks.index--;
+  }
+}
+
+function fastfoward_callbacks(anim, anime_callbacks) {
+  const anime_t = anim.currentTime;
+
+  if (anime_callbacks.index < 0) {
+    anime_callbacks.index = 0;
+  }
+
+  while ((anime_callbacks.index < anime_callbacks.cbs.length) &&
+         (anime_callbacks.cbs[anime_callbacks.index].t <= anime_t)) {
+    anime_callbacks.cbs[anime_callbacks.index].apply();
+    anime_callbacks.index++;
+  }
 }

@@ -43,3 +43,12 @@
 .controls button {
     margin-right: 5px;
 }
+
+.narrative-code {
+    width: 650px;
+}
+
+p {
+    width: 650px;
+    line-height: 1.25;
+}

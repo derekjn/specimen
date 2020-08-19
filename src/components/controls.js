@@ -64,18 +64,7 @@ export function render(data) {
   const restart = document.createElement("button");
   restart.id = rendering.restart.id;
   restart.textContent = rendering.restart.text;
-  restart.onclick = () => {
-    if (callbacks.index >= callbacks.cbs.length) {
-      callbacks.index = callbacks.cbs.length - 1;
-    }
-
-    while ((callbacks.index >= 0) && callbacks.cbs[callbacks.index].t >= 0) {
-      callbacks.cbs[callbacks.index].undo();
-      callbacks.index--;
-    }
-
-    timeline.restart();
-  };
+  restart.onclick = timeline.restart;
 
   const manual_left = document.createElement("button");
   manual_left.id = rendering.manual_left.id;

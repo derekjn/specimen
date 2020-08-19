@@ -5,12 +5,171 @@
     <meta charset="utf-8">
     <link rel="stylesheet" href="../../css/theme.css">
     <link rel="stylesheet" href="../../css/github.css">
-
   </head>
 
   <body>
-    <div class="example-1">
-      <h2>Multi-stage topology</h2>
+    <div id="rekeying">
+      <div>
+        <h1>Rekeying a transformed stream</h1>
+        <p>What does it look like to transform a stream with ksqlDB, then repartition it into a new one? Press Play to find out. Hover over any event to see its contents. Drag the progress bar back and forth to how things change over time.</p>
+      </div>
+    </div>
+
+    <p>Pretty cool! But what is really going on here? Let's take it apart.</p>
+
+    <div id="stream">
+      <div>
+        <h2>Step 1: Declare a stream</h2>
+        <p>This animation is backed by a small JavaScript library. The deal is that you give it the graph of your data and stream processing topologies, and it draws what happens if you execute it by using an (extremely limited) Kafka Streams JavaScript runtime.</p>
+
+        <p>Make a <i>Specimen</i> by choosing a DOM element to render into, and supplying any customized styles. Then add a source stream. The records in each partition reflect the data that can underlying Kafka record would have.</p>
+
+    <pre class="narrative-code"><code class="lang-javascript">
+  const s = new Specimen(container, styles);
+
+  s.add_root({
+    name: "s1",
+    kind: "stream",
+    partitions: [
+      [
+        { value: 40, t: 22 },
+        { value: 41, t: 45 },
+        { value: 42, t: 73 }
+      ],
+      [
+        { value: 42, t: 11 },
+        { value: 43, t: 38 },
+        { value: 41, t: 57 },
+        { value: 40, t: 60 }
+      ],
+      [
+        { value: 41, t: 24 },
+        { value: 42, t: 43 },
+        { value: 43, t: 67 }
+      ],
+      [
+        { value: 43, t: 19 },
+        { value: 40, t: 38 },
+        { value: 40, t: 42 },
+        { value: 42, t: 55 },
+        { value: 41, t: 53 }
+      ]
+    ]
+  });
+
+  s.render();
+    </code></pre>
+        <p>A quick call to render shows the result:</p>
+      </div>
+    </div>
+
+    <div id="transforming">
+      <div>
+        <h2>Step 2: Transform the stream</h2>
+        <p>Let's derive a new stream from the existing one. Create a new node in the graph for the query, and another for the output stream.</p>
+    <pre class="narrative-code"><code class="lang-javascript">
+  s.add_child(["s1"], {
+    name: "pq1",
+    kind: "persistent_query",
+    into: "s2",
+    query_text: [
+      "CREATE STREAM s2 AS",
+      "  SELECT col1, FLOOR(col2) AS f",
+      "  FROM s1",
+      "  WHERE col3 != 'foo'",
+      "  EMIT CHANGES;"
+    ]
+  });
+
+  s.add_child(["pq1"], {
+    name: "s2",
+    kind: "stream",
+    partitions: [
+      [],
+      [],
+      [],
+      []
+    ]
+  });
+    </code></pre>
+        <p>If you render this addition, you get this:</p>
+      </div>
+    </div>
+
+    <div id="coloring">
+      <div>
+        <h2>Step 3: Control the color scheme</h2>
+        <p>In the first example, the colors of the events change as they pass through the first persistent query. Specimen lets you bend appearances during processing. Amend the previous bit of code to include a <i>style</i> parameter to select the fill. The fill is chosen by hashing some of the record data against the partition count, supplied as part of a larger map of runtime context.</p>
+    <pre class="narrative-code"><code class="lang-javascript">
+  s.add_child(["s1"], {
+    name: "pq1",
+    kind: "persistent_query",
+    into: "s2",
+    query_text: [
+      "CREATE STREAM s2 AS",
+      "  SELECT col1, FLOOR(col2) AS f",
+      "  FROM s1",
+      "  WHERE col3 != 'foo'",
+      "  EMIT CHANGES;"
+    ],
+    style: {
+      fill: function(before_row, after_row) {
+        const flavors = [
+          "#38CCED",
+          "#0074A2",
+          "#829494",
+          "#D8365D"
+        ];
+        return flavors[before_row.value % flavors.length];
+      }
+    }
+  });
+    </code></pre>
+        <p>Render once more:</p>
+      </div>
+    </div>
+
+    <div id="fully-assembled">
+      <div>
+        <h2>Step 4: Repartition the stream</h2>
+        <p>Lastly, lets repartition the derived stream. Just supply a <i>partition_by</i> function. When you choose the partition, you get to see the row pre-processing as well as post-processing. This "before/after" is pervasive in the API, and highly useful for making complex animations.</p>
+            <pre class="narrative-code"><code class="lang-javascript">
+  s.add_child(["s2"], {
+    name: "pq2",
+    kind: "persistent_query",
+    into: "s3",
+    query_text: [
+      "CREATE STREAM s2 AS",
+      "  SELECT col1, FLOOR(col2) AS f",
+      "  FROM s1",
+      "  WHERE col3 != 'foo'",
+      "  EMIT CHANGES;"
+    ],
+    partition_by: function(context, before_row, after_row) {
+      return before_row.value;
+    }
+  });  
+
+  s.add_child(["pq2"], {
+    name: "s3",
+    kind: "stream",
+    partitions: [
+      [],
+      [],
+      [],
+      []
+    ]
+  });
+    </code></pre>
+      </div>
+    </div>
+
+    <p>And that's how it works.</p>
+
+    <div id="complex">
+      <div>
+        <h1>Bonus topology! Something more complex</h1>
+      </div>
     </div>
 
     <script src="./bundle.js"></script>    
