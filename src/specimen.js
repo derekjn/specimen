@@ -115,7 +115,7 @@ Specimen.prototype.horizontal_layout = function() {
     let result = []
     let top_y = 0;
 
-    names.sort().forEach(name => {
+    names.sort().forEach((name, i) => {
       const node = this._graph.node(name);
       const predecessors = this._graph.predecessors(name);
       const successors = this._graph.successors(name);
@@ -135,6 +135,7 @@ Specimen.prototype.horizontal_layout = function() {
         }, {});
 
         node.source_partitions = source_partitions;
+        node.index = i;
       } 
 
       const data_fn = data_fns[node.kind];

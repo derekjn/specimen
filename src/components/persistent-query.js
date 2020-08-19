@@ -30,7 +30,7 @@ function build_source_partitions_data(arr, styles, computed) {
 }
 
 export function build_data(config, styles, computed) {
-  const { name, source_partitions, query_text, style: pq_style } = config;
+  const { name, source_partitions, query_text, index, style: pq_style } = config;
   const { select, into, where, partition_by } = config;
 
   const { pq_width, pq_height, pq_margin_top, pq_bracket_len } = styles;
@@ -105,6 +105,7 @@ export function build_data(config, styles, computed) {
         }
       },
       style: pq_style || {},
+      top_component: index == 0
     },
     vars: {
       query_text: query_text,
@@ -176,8 +177,11 @@ export function render(data) {
 
   const d_stream_time = st.render(stream_time);
   const d_source_partitions = source_partitions.map(s => sp.render(s));
-  
-  g.appendChild(d_line);
+
+  if (rendering.top_component) {
+    g.appendChild(d_line);
+  }
+
   g.appendChild(d_tl);
   g.appendChild(d_tr);
   g.appendChild(d_bl);

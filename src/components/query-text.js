@@ -67,7 +67,10 @@ export function render(data, styles, computed) {
   const { svg_width } = styles;
   const { layout, target } = computed;
 
-  const pqs = layout.filter(component => component.kind == "persistent_query");
+  const pqs = layout.filter(component => {
+    return (component.kind == "persistent_query") && component.rendering.top_component;
+  });
+
   const children = pqs.map(pq => make_code_container(pq.vars.query_text));
   const parent = make_parent_container(id, children);
 
