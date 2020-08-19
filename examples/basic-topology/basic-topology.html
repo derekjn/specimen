@@ -15,74 +15,83 @@
       </div>
     </div>
 
-    <p>Pretty cool! But what is really going on here? Let's take it apart.</p>
+    <p>Pretty cool! But what is really going on here? Let's slow things down and take it apart.</p>
 
     <div id="stream">
       <div>
         <h2>Step 1: Declare a stream</h2>
-        <p>This animation is backed by a small JavaScript library. The deal is that you give it the graph of your data and stream processing topologies, and it draws what happens if you execute it by using an (extremely limited) Kafka Streams JavaScript runtime.</p>
+        <p>This animation is backed by a JavaScript library. The deal is that you give it the graph of your Kafka data and stream processing topologies, and it draws what happens if you execute it by using an (extremely limited) Kafka Streams JavaScript runtime.</p>
 
-        <p>Make a <i>Specimen</i> by choosing a DOM element to render into, and supplying any customized styles. Then add a source stream. The records in each partition reflect the data that can underlying Kafka record would have.</p>
+        <p>Here is what the code looks like. Make a <i>Specimen</i> by choosing a DOM element to render into and supply any customized styles. Then add a source stream. The records in each partition reflect the data that an underlying Kafka record would have.</p>
 
-    <pre class="narrative-code"><code class="lang-javascript">
+        <pre class="narrative-code"><code class="lang-javascript">
   const s = new Specimen(container, styles);
 
   s.add_root({
-    name: "s1",
+    name: "orders",
     kind: "stream",
     partitions: [
       [
-        { value: 40, t: 22 },
-        { value: 41, t: 45 },
-        { value: 42, t: 73 }
+        { key: "buyer-1", value: { amount: 40, country: "usa" }, t: 22 },
+        { key: "buyer-2", value: { amount: 41, country: "eth" }, t: 45 },
+        { key: "buyer-1", value: { amount: 42, country: "usa" }, t: 73 }
       ],
       [
-        { value: 42, t: 11 },
-        { value: 43, t: 38 },
-        { value: 41, t: 57 },
-        { value: 40, t: 60 }
+        { key: "buyer-3", value: { amount: 42, country: "mex" }, t: 11 },
+        { key: "buyer-4", value: { amount: 43, country: "eth" }, t: 38 },
+        { key: "buyer-4", value: { amount: 41, country: "eth" }, t: 57 },
+        { key: "buyer-3", value: { amount: 40, country: "mex" }, t: 60 }
       ],
       [
-        { value: 41, t: 24 },
-        { value: 42, t: 43 },
-        { value: 43, t: 67 }
+        { key: "buyer-5", value: { amount: 41, country: "arg" }, t: 24 },
+        { key: "buyer-5", value: { amount: 42, country: "arg" }, t: 43 },
+        { key: "buyer-6", value: { amount: 43, country: "mex" }, t: 67 }
       ],
       [
-        { value: 43, t: 19 },
-        { value: 40, t: 38 },
-        { value: 40, t: 42 },
-        { value: 42, t: 55 },
-        { value: 41, t: 53 }
+        { key: "buyer-7", value: { amount: 43, country: "arg" }, t: 19 },
+        { key: "buyer-8", value: { amount: 40, country: "usa" }, t: 38 },
+        { key: "buyer-9", value: { amount: 42, country: "usa" }, t: 42 },
+        { key: "buyer-9", value: { amount: 44, country: "usa" }, t: 55 },
+        { key: "buyer-7", value: { amount: 41, country: "arg" }, t: 53 }
       ]
     ]
   });
-
-  s.render();
     </code></pre>
-        <p>A quick call to render shows the result:</p>
+        <p>A quick call to render shows the incremental result:</p>
       </div>
     </div>
 
     <div id="transforming">
       <div>
         <h2>Step 2: Transform the stream</h2>
-        <p>Let's derive a new stream from the existing one. Create a new node in the graph for the query, and another for the output stream.</p>
-    <pre class="narrative-code"><code class="lang-javascript">
-  s.add_child(["s1"], {
+        <p>Derive a new stream from the existing one. Create a new node in the graph for the query, and another for its output stream. The supplied query text doesn't do anything -- it's just to be explicit about how to format it during rendering.</p>
+        <pre class="narrative-code"><code class="lang-javascript">
+  s.add_child(["orders"], {
     name: "pq1",
     kind: "persistent_query",
-    into: "s2",
+    into: "clean_orders",
     query_text: [
-      "CREATE STREAM s2 AS",
-      "  SELECT col1, FLOOR(col2) AS f",
-      "  FROM s1",
-      "  WHERE col3 != 'foo'",
+      "CREATE STREAM clean_orders AS",
+      "  SELECT buyer,",
+      "         amount",
+      "         UCASE(country) AS country",
+      "  FROM orders",
       "  EMIT CHANGES;"
-    ]
+    ],
+    select: function(row) {
+      const { value } = row;
+      
+      const v = {
+        amount: value.amount,
+        country: value.country.toUpperCase()
+      }
+
+      return { ...row, ... { value: v } };
+    }
   });
 
   s.add_child(["pq1"], {
-    name: "s2",
+    name: "clean_orders",
     kind: "stream",
     partitions: [
       [],
@@ -90,28 +99,39 @@
       [],
       []
     ]
-  });
+  });            
     </code></pre>
-        <p>If you render this addition, you get this:</p>
+        <p>With this addition, you get this:</p>
       </div>
     </div>
 
     <div id="coloring">
       <div>
         <h2>Step 3: Control the color scheme</h2>
-        <p>In the first example, the colors of the events change as they pass through the first persistent query. Specimen lets you bend appearances during processing. Amend the previous bit of code to include a <i>style</i> parameter to select the fill. The fill is chosen by hashing some of the record data against the partition count, supplied as part of a larger map of runtime context.</p>
+        <p>In the first example, the colors of the events change as they pass through the first persistent query to signify that they are being transformed. Specimen lets you bend appearances as part of its API. Amend the previous bit of code to include a <i>style</i> parameter to select the fill. The fill is chosen by hashing some of the record data against the partition count, supplied as part of a larger map of runtime context.</p>
     <pre class="narrative-code"><code class="lang-javascript">
-  s.add_child(["s1"], {
+  s.add_child(["orders"], {
     name: "pq1",
     kind: "persistent_query",
-    into: "s2",
+    into: "clean_orders",
     query_text: [
-      "CREATE STREAM s2 AS",
-      "  SELECT col1, FLOOR(col2) AS f",
-      "  FROM s1",
-      "  WHERE col3 != 'foo'",
+      "CREATE STREAM clean_orders AS",
+      "  SELECT buyer,",
+      "         amount",
+      "         UCASE(country) AS country",
+      "  FROM orders",
       "  EMIT CHANGES;"
     ],
+    select: function(row) {
+      const { value } = row;
+      
+      const v = {
+        amount: value.amount,
+        country: value.country.toUpperCase()
+      }
+
+      return { ...row, ... { value: v } };
+    },
     style: {
       fill: function(before_row, after_row) {
         const flavors = [
@@ -120,7 +140,7 @@
           "#829494",
           "#D8365D"
         ];
-        return flavors[before_row.value % flavors.length];
+        return flavors[before_row.value.country.hashCode() % flavors.length];
       }
     }
   });
@@ -132,26 +152,29 @@
     <div id="fully-assembled">
       <div>
         <h2>Step 4: Repartition the stream</h2>
-        <p>Lastly, lets repartition the derived stream. Just supply a <i>partition_by</i> function. When you choose the partition, you get to see the row pre-processing as well as post-processing. This "before/after" is pervasive in the API, and highly useful for making complex animations.</p>
+        <p>Lastly, repartition the derived stream. Just supply a <i>partition_by</i> function. When you choose the partition, you get to see the row pre-processing as well as post-processing. This "before/after" model is pervasive in the API, and is highly useful for making complex animations.</p>
             <pre class="narrative-code"><code class="lang-javascript">
-  s.add_child(["s2"], {
+  s.add_child(["clean_orders"], {
     name: "pq2",
     kind: "persistent_query",
-    into: "s3",
+    into: "orders_by_country",
     query_text: [
-      "CREATE STREAM s2 AS",
-      "  SELECT col1, FLOOR(col2) AS f",
-      "  FROM s1",
-      "  WHERE col3 != 'foo'",
+      "CREATE STREAM orders_by_country AS",
+      "  SELECT *",
+      "  FROM clean_orders",
+      "  PARTITION BY country",
       "  EMIT CHANGES;"
     ],
+    select: function(row) {
+      return row;
+    },
     partition_by: function(context, before_row, after_row) {
-      return before_row.value;
+      return before_row.value.country.hashCode();
     }
   });  
 
   s.add_child(["pq2"], {
-    name: "s3",
+    name: "orders_by_country",
     kind: "stream",
     partitions: [
       [],
@@ -160,7 +183,7 @@
       []
     ]
   });
-    </code></pre>
+            </code></pre>
       </div>
     </div>
 

@@ -7,6 +7,18 @@ hljs.registerLanguage('sql', ksql);
 hljs.registerLanguage('javascript', hljs_js);
 hljs.initHighlightingOnLoad();
 
+Object.defineProperty(String.prototype, 'hashCode', {
+  value: function() {
+    var hash = 0, i, chr;
+    for (i = 0; i < this.length; i++) {
+      chr   = this.charCodeAt(i);
+      hash  = ((hash << 5) - hash) + chr;
+      hash |= 0; // Convert to 32bit integer
+    }
+    return hash;
+  }
+});
+
 function rekeying(container) {
   const styles = {
     svg_width: 1200,
@@ -37,46 +49,57 @@ function rekeying(container) {
   const s = new Specimen(container, styles);
 
   s.add_root({
-    name: "s1",
+    name: "orders",
     kind: "stream",
     partitions: [
       [
-        { value: 40, t: 22 },
-        { value: 41, t: 45 },
-        { value: 42, t: 73 }
+        { key: "buyer-1", value: { amount: 40, country: "usa" }, t: 22 },
+        { key: "buyer-2", value: { amount: 41, country: "eth" }, t: 45 },
+        { key: "buyer-1", value: { amount: 42, country: "usa" }, t: 73 }
       ],
       [
-        { value: 42, t: 11 },
-        { value: 43, t: 38 },
-        { value: 41, t: 57 },
-        { value: 40, t: 60 }
+        { key: "buyer-3", value: { amount: 42, country: "mex" }, t: 11 },
+        { key: "buyer-4", value: { amount: 43, country: "eth" }, t: 38 },
+        { key: "buyer-4", value: { amount: 41, country: "eth" }, t: 57 },
+        { key: "buyer-3", value: { amount: 40, country: "mex" }, t: 60 }
       ],
       [
-        { value: 41, t: 24 },
-        { value: 42, t: 43 },
-        { value: 43, t: 67 }
+        { key: "buyer-5", value: { amount: 41, country: "arg" }, t: 24 },
+        { key: "buyer-5", value: { amount: 42, country: "arg" }, t: 43 },
+        { key: "buyer-6", value: { amount: 43, country: "mex" }, t: 67 }
       ],
       [
-        { value: 43, t: 19 },
-        { value: 40, t: 38 },
-        { value: 40, t: 42 },
-        { value: 42, t: 55 },
-        { value: 41, t: 53 }
+        { key: "buyer-7", value: { amount: 43, country: "arg" }, t: 19 },
+        { key: "buyer-8", value: { amount: 40, country: "usa" }, t: 38 },
+        { key: "buyer-9", value: { amount: 42, country: "usa" }, t: 42 },
+        { key: "buyer-9", value: { amount: 44, country: "usa" }, t: 55 },
+        { key: "buyer-7", value: { amount: 41, country: "arg" }, t: 53 }
       ]
     ]
   });
 
-  s.add_child(["s1"], {
+  s.add_child(["orders"], {
     name: "pq1",
     kind: "persistent_query",
-    into: "s2",
+    into: "clean_orders",
     query_text: [
-      "CREATE STREAM s2 AS",
-      "  SELECT col1, FLOOR(col2) AS f",
-      "  FROM s1",
-      "  WHERE col3 != 'foo'",
+      "CREATE STREAM clean_orders AS",
+      "  SELECT buyer,",
+      "         amount",
+      "         UCASE(country) AS country",
+      "  FROM orders",
       "  EMIT CHANGES;"
     ],
+    select: function(row) {
+      const { value } = row;
+      
+      const v = {
+        amount: value.amount,
+        country: value.country.toUpperCase()
+      }
+
+      return { ...row, ... { value: v } };
+    },
     style: {
       fill: function(before_row, after_row) {
         const flavors = [
@@ -85,13 +108,13 @@ function rekeying(container) {
           "#829494",
           "#D8365D"
         ];
-        return flavors[before_row.value % flavors.length];
+        return flavors[before_row.value.country.hashCode() % flavors.length];
       }
     }
   });
 
   s.add_child(["pq1"], {
-    name: "s2",
+    name: "clean_orders",
     kind: "stream",
     partitions: [
       [],
@@ -101,24 +124,27 @@ function rekeying(container) {
     ]
   });
 
-  s.add_child(["s2"], {
+  s.add_child(["clean_orders"], {
     name: "pq2",
     kind: "persistent_query",
-    into: "s3",
+    into: "orders_by_country",
     query_text: [
-      "CREATE STREAM s2 AS",
-      "  SELECT col1, FLOOR(col2) AS f",
-      "  FROM s1",
-      "  WHERE col3 != 'foo'",
+      "CREATE STREAM orders_by_country AS",
+      "  SELECT *",
+      "  FROM clean_orders",
+      "  PARTITION BY country",
       "  EMIT CHANGES;"
     ],
+    select: function(row) {
+      return row;
+    },
     partition_by: function(context, before_row, after_row) {
-      return before_row.value;
+      return before_row.value.country.hashCode();
     }
   });  
 
   s.add_child(["pq2"], {
-    name: "s3",
+    name: "orders_by_country",
     kind: "stream",
     partitions: [
       [],
@@ -161,31 +187,31 @@ function stream(container) {
   const s = new Specimen(container, styles);
 
   s.add_root({
-    name: "s1",
+    name: "orders",
     kind: "stream",
     partitions: [
       [
-        { value: 40, t: 22 },
-        { value: 41, t: 45 },
-        { value: 42, t: 73 }
+        { key: "buyer-1", value: { amount: 40, country: "usa" }, t: 22 },
+        { key: "buyer-2", value: { amount: 41, country: "eth" }, t: 45 },
+        { key: "buyer-1", value: { amount: 42, country: "usa" }, t: 73 }
       ],
       [
-        { value: 42, t: 11 },
-        { value: 43, t: 38 },
-        { value: 41, t: 57 },
-        { value: 40, t: 60 }
+        { key: "buyer-3", value: { amount: 42, country: "mex" }, t: 11 },
+        { key: "buyer-4", value: { amount: 43, country: "eth" }, t: 38 },
+        { key: "buyer-4", value: { amount: 41, country: "eth" }, t: 57 },
+        { key: "buyer-3", value: { amount: 40, country: "mex" }, t: 60 }
       ],
       [
-        { value: 41, t: 24 },
-        { value: 42, t: 43 },
-        { value: 43, t: 67 }
+        { key: "buyer-5", value: { amount: 41, country: "arg" }, t: 24 },
+        { key: "buyer-5", value: { amount: 42, country: "arg" }, t: 43 },
+        { key: "buyer-6", value: { amount: 43, country: "mex" }, t: 67 }
       ],
       [
-        { value: 43, t: 19 },
-        { value: 40, t: 38 },
-        { value: 40, t: 42 },
-        { value: 42, t: 55 },
-        { value: 41, t: 53 }
+        { key: "buyer-7", value: { amount: 43, country: "arg" }, t: 19 },
+        { key: "buyer-8", value: { amount: 40, country: "usa" }, t: 38 },
+        { key: "buyer-9", value: { amount: 42, country: "usa" }, t: 42 },
+        { key: "buyer-9", value: { amount: 44, country: "usa" }, t: 55 },
+        { key: "buyer-7", value: { amount: 41, country: "arg" }, t: 53 }
       ]
     ]
   });
@@ -223,50 +249,61 @@ function transforming(container) {
   const s = new Specimen(container, styles);
 
   s.add_root({
-    name: "s1",
+    name: "orders",
     kind: "stream",
     partitions: [
       [
-        { value: 40, t: 22 },
-        { value: 41, t: 45 },
-        { value: 42, t: 73 }
+        { key: "buyer-1", value: { amount: 40, country: "usa" }, t: 22 },
+        { key: "buyer-2", value: { amount: 41, country: "eth" }, t: 45 },
+        { key: "buyer-1", value: { amount: 42, country: "usa" }, t: 73 }
       ],
       [
-        { value: 42, t: 11 },
-        { value: 43, t: 38 },
-        { value: 41, t: 57 },
-        { value: 40, t: 60 }
+        { key: "buyer-3", value: { amount: 42, country: "mex" }, t: 11 },
+        { key: "buyer-4", value: { amount: 43, country: "eth" }, t: 38 },
+        { key: "buyer-4", value: { amount: 41, country: "eth" }, t: 57 },
+        { key: "buyer-3", value: { amount: 40, country: "mex" }, t: 60 }
       ],
       [
-        { value: 41, t: 24 },
-        { value: 42, t: 43 },
-        { value: 43, t: 67 }
+        { key: "buyer-5", value: { amount: 41, country: "arg" }, t: 24 },
+        { key: "buyer-5", value: { amount: 42, country: "arg" }, t: 43 },
+        { key: "buyer-6", value: { amount: 43, country: "mex" }, t: 67 }
       ],
       [
-        { value: 43, t: 19 },
-        { value: 40, t: 38 },
-        { value: 40, t: 42 },
-        { value: 42, t: 55 },
-        { value: 41, t: 53 }
+        { key: "buyer-7", value: { amount: 43, country: "arg" }, t: 19 },
+        { key: "buyer-8", value: { amount: 40, country: "usa" }, t: 38 },
+        { key: "buyer-9", value: { amount: 42, country: "usa" }, t: 42 },
+        { key: "buyer-9", value: { amount: 44, country: "usa" }, t: 55 },
+        { key: "buyer-7", value: { amount: 41, country: "arg" }, t: 53 }
       ]
     ]
   });
 
-  s.add_child(["s1"], {
+  s.add_child(["orders"], {
     name: "pq1",
     kind: "persistent_query",
-    into: "s2",
+    into: "clean_orders",
     query_text: [
-      "CREATE STREAM s2 AS",
-      "  SELECT col1, FLOOR(col2) AS f",
-      "  FROM s1",
-      "  WHERE col3 != 'foo'",
+      "CREATE STREAM clean_orders AS",
+      "  SELECT buyer,",
+      "         amount",
+      "         UCASE(country) AS country",
+      "  FROM orders",
       "  EMIT CHANGES;"
-    ]
+    ],
+    select: function(row) {
+      const { value } = row;
+
+      const v = {
+        amount: value.amount,
+        country: value.country.toUpperCase()
+      }
+
+      return { ...row, ... { value: v } };
+    }
   });
 
   s.add_child(["pq1"], {
-    name: "s2",
+    name: "clean_orders",
     kind: "stream",
     partitions: [
       [],
@@ -309,46 +346,57 @@ function coloring(container) {
   const s = new Specimen(container, styles);
 
   s.add_root({
-    name: "s1",
+    name: "orders",
     kind: "stream",
     partitions: [
       [
-        { value: 40, t: 22 },
-        { value: 41, t: 45 },
-        { value: 42, t: 73 }
+        { key: "buyer-1", value: { amount: 40, country: "usa" }, t: 22 },
+        { key: "buyer-2", value: { amount: 41, country: "eth" }, t: 45 },
+        { key: "buyer-1", value: { amount: 42, country: "usa" }, t: 73 }
       ],
       [
-        { value: 42, t: 11 },
-        { value: 43, t: 38 },
-        { value: 41, t: 57 },
-        { value: 40, t: 60 }
+        { key: "buyer-3", value: { amount: 42, country: "mex" }, t: 11 },
+        { key: "buyer-4", value: { amount: 43, country: "eth" }, t: 38 },
+        { key: "buyer-4", value: { amount: 41, country: "eth" }, t: 57 },
+        { key: "buyer-3", value: { amount: 40, country: "mex" }, t: 60 }
       ],
       [
-        { value: 41, t: 24 },
-        { value: 42, t: 43 },
-        { value: 43, t: 67 }
+        { key: "buyer-5", value: { amount: 41, country: "arg" }, t: 24 },
+        { key: "buyer-5", value: { amount: 42, country: "arg" }, t: 43 },
+        { key: "buyer-6", value: { amount: 43, country: "mex" }, t: 67 }
       ],
       [
-        { value: 43, t: 19 },
-        { value: 40, t: 38 },
-        { value: 40, t: 42 },
-        { value: 42, t: 55 },
-        { value: 41, t: 53 }
+        { key: "buyer-7", value: { amount: 43, country: "arg" }, t: 19 },
+        { key: "buyer-8", value: { amount: 40, country: "usa" }, t: 38 },
+        { key: "buyer-9", value: { amount: 42, country: "usa" }, t: 42 },
+        { key: "buyer-9", value: { amount: 44, country: "usa" }, t: 55 },
+        { key: "buyer-7", value: { amount: 41, country: "arg" }, t: 53 }
       ]
     ]
   });
 
-  s.add_child(["s1"], {
+  s.add_child(["orders"], {
     name: "pq1",
     kind: "persistent_query",
-    into: "s2",
+    into: "clean_orders",
     query_text: [
-      "CREATE STREAM s2 AS",
-      "  SELECT col1, FLOOR(col2) AS f",
-      "  FROM s1",
-      "  WHERE col3 != 'foo'",
+      "CREATE STREAM clean_orders AS",
+      "  SELECT buyer,",
+      "         amount",
+      "         UCASE(country) AS country",
+      "  FROM orders",
       "  EMIT CHANGES;"
     ],
+    select: function(row) {
+      const { value } = row;
+      
+      const v = {
+        amount: value.amount,
+        country: value.country.toUpperCase()
+      }
+
+      return { ...row, ... { value: v } };
+    },
     style: {
       fill: function(before_row, after_row) {
         const flavors = [
@@ -357,13 +405,13 @@ function coloring(container) {
           "#829494",
           "#D8365D"
         ];
-        return flavors[before_row.value % flavors.length];
+        return flavors[before_row.value.country.hashCode() % flavors.length];
       }
     }
   });
 
   s.add_child(["pq1"], {
-    name: "s2",
+    name: "clean_orders",
     kind: "stream",
     partitions: [
       [],

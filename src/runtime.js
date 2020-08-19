@@ -111,12 +111,15 @@ function update_stream_time(stream_time, pq, t) {
 
 function evaluate_select(runtime_context, query_context, query_parts, before_row) {
   const { by_name, pack, pq, offsets, stream_time, lineage } = runtime_context;
-  const { into, partition_by } = query_parts;
+  const { select, into, partition_by } = query_parts;
 
   const before_offsets = cloneDeep(offsets[pq]);
   const before_stream_time = stream_time[pq];
+  const before_row_clone = cloneDeep(before_row);
 
-  const after_row = { ...cloneDeep(before_row), ...{ id: uuidv4() } };
+  const after_row = { ...before_row_clone, ...{ id: uuidv4() } };
+
+  after_row.vars.record = select(before_row_clone.vars.record);
   after_row.vars.derived_id = before_row.id;
 
   set_after_stream(after_row, into);
